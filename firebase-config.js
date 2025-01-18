@@ -1,11 +1,22 @@
-const admin = require('firebase-admin');
-const serviceAccount = require('./user-api-server-firebase-adminsdk-tqt8l-8a8e858efc.json');
+const admin = require("firebase-admin");
+require("dotenv").config();
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://user-api-server.firebaseio.com" // تأكد من استخدام Project ID الخاص بمشروعك
-});
+try {
+  // قراءة المتغير FIREBASE_CONFIG من ملف .env
+  const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG);
 
-const db = admin.firestore();
+  // تهيئة Firebase Admin SDK
+  admin.initializeApp({
+    credential: admin.credential.cert(firebaseConfig),
+    databaseURL: `https://${firebaseConfig.project_id}.firebaseio.com`,
+  });
 
-module.exports = db;
+  console.log("Firebase initialized successfully!");
+
+  // تصدير قاعدة البيانات
+  const db = admin.firestore();
+  module.exports = db;
+} catch (error) {
+  console.error("Error initializing Firebase:", error.message);
+  process.exit(1); // إنهاء البرنامج في حال وجود خطأ
+}
