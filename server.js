@@ -76,6 +76,41 @@ app.get('/getAllAppointments', async (req, res) => {
   }
 });
 
+
+// API لجلب الأوقات المتاحة لتاريخ معين
+app.get('/getAvailableTimes/:date', async (req, res) => {
+  try {
+      const { date } = req.params;
+
+      const appointmentsSnapshot = await db.collection('appointments')
+          .where('date', '==', date)
+          .get();
+
+      if (appointmentsSnapshot.empty) {
+          return res.status(200).json({ availableTimes: ["05:00:00","06:00:00","07:00:00","08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00", "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "18:00:00", "19:00:00", "20:00:00", "21:00:00", "22:00:00" ]});
+      }
+
+      // جمع الأوقات المحجوزة لهذا اليوم
+      const bookedTimes = appointmentsSnapshot.docs
+          .filter(doc => doc.data().status === 'booked')
+          .map(doc => doc.data().time);
+
+      // قائمة الأوقات الممكنة
+      const allTimes = ["05:00:00","06:00:00","07:00:00","08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00", "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "18:00:00", "19:00:00", "20:00:00", "21:00:00", "22:00:00" ];
+
+      // الأوقات المتاحة = كل الأوقات - الأوقات المحجوزة
+      const availableTimes = allTimes.filter(time => !bookedTimes.includes(time));
+
+      res.status(200).json({ availableTimes });
+  } catch (error) {
+      console.error('خطأ أثناء جلب الأوقات المتاحة:', error);
+      res.status(500).json({ error: 'حدث خطأ أثناء جلب الأوقات المتاحة.' });
+  }
+});
+
+
+
+
 // API لإضافة مستخدم
 app.post('/addUser', async (req, res) => {
   const {
@@ -132,7 +167,6 @@ app.post('/bookAppointment', async (req, res) => {
     insurance_policy_number,
     agree_to_terms,
     reminder_method,
-    appointment_id, // معرّف الموعد
   } = req.body;
 
   // التحقق من الحقول المطلوبة
@@ -145,21 +179,24 @@ app.post('/bookAppointment', async (req, res) => {
     !appointment_time ||
     !appointment_reason ||
     !agree_to_terms ||
-    !reminder_method ||
-    !appointment_id
+    !reminder_method
   ) {
     return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
   }
 
   try {
-    // العثور على الموعد في Collection appointments
-    const appointmentRef = db.collection('appointments').doc(appointment_id);
-    const appointmentDoc = await appointmentRef.get();
+    // البحث عن الموعد باستخدام التاريخ والوقت
+    const appointmentSnapshot = await db.collection('appointments')
+      .where('date', '==', appointment_date)
+      .where('time', '==', appointment_time)
+      .get();
 
-    if (!appointmentDoc.exists) {
+    if (appointmentSnapshot.empty) {
       return res.status(404).json({ error: 'الموعد غير موجود أو تم حجزه مسبقًا.' });
     }
 
+    const appointmentDoc = appointmentSnapshot.docs[0]; // الموعد الأول في النتائج
+    const appointmentRef = appointmentDoc.ref; // مرجع المستند
     const appointmentData = appointmentDoc.data();
 
     // التحقق إذا كان الموعد متاحًا
@@ -184,7 +221,7 @@ app.post('/bookAppointment', async (req, res) => {
       insurance_policy_number: has_insurance ? insurance_policy_number : null,
       agree_to_terms,
       reminder_method,
-      appointment_id,
+      appointment_id: appointmentDoc.id, // ربط المريض بمعرف الموعد
       booked_at: new Date().toISOString(), // وقت الحجز
     });
 
@@ -196,7 +233,7 @@ app.post('/bookAppointment', async (req, res) => {
 
     res.status(200).json({
       message: 'تم حجز الموعد بنجاح!',
-      appointmentId: appointment_id,
+      appointmentId: appointmentDoc.id,
       patientId: patientRef.id, // إرجاع معرف المريض
     });
   } catch (error) {
@@ -204,6 +241,7 @@ app.post('/bookAppointment', async (req, res) => {
     res.status(500).json({ error: 'حدث خطأ أثناء حجز الموعد.' });
   }
 });
+
 
 // API لإضافة مواعيد لجميع أيام السنة (2025)
 app.post('/addYearAppointments', async (req, res) => {
