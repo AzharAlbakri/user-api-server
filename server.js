@@ -108,9 +108,6 @@ app.get('/getAvailableTimes/:date', async (req, res) => {
   }
 });
 
-
-
-
 // API لإضافة مستخدم
 app.post('/addUser', async (req, res) => {
   const {
