@@ -4,11 +4,17 @@ const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+
 // استيراد نموذج المستخدم والمريض والمواعيد
 const User = require('./models/User');
 const Patient = require('./models/Patient');
 const Appointment = require('./models/Appointment');
 const Article = require('./models/Article');
+const Admin = require('./models/Admin'); // استيراد النموذج
+const { verifyToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
 
 const app = express();
 app.use(cors()); // تفعيل CORS لجميع الطلبات
@@ -20,6 +26,7 @@ const PORT = process.env.PORT || 3000;
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("تم الاتصال بقاعدة البيانات MongoDB بنجاح"))
   .catch(err => console.log("فشل الاتصال بقاعدة البيانات", err));
+
 
 // API لجلب جميع المستخدمين
 app.get('/getAllUsers', async (req, res) => {
@@ -254,6 +261,93 @@ app.get('/getAllArticles', async (req, res) => {
     res.status(500).json({ error: 'حدث خطأ أثناء جلب المقالات.' });
   }
 });
+
+//DASHBOARD
+// API لتسجيل الدخول والحصول على توكن
+// API لإضافة Admin (مسؤول)
+app.post('/addAdmin', async (req, res) => {
+  const { fullName, email, password } = req.body;
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ error: 'يرجى توفير جميع الحقول المطلوبة.' });
+  }
+
+  try {
+    // تحقق من وجود المسؤول في قاعدة البيانات
+    const existingAdmin = await Admin.findOne({ email });
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'البريد الإلكتروني مستخدم بالفعل.' });
+    }
+
+    // تشفير كلمة المرور
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // إضافة المسؤول الجديد إلى قاعدة البيانات
+    const newAdmin = new Admin({
+      fullName,
+      email,
+      password: hashedPassword,
+    });
+
+    await newAdmin.save();
+    res.status(200).json({ message: 'تم إضافة المسؤول بنجاح!' });
+  } catch (error) {
+    console.error('خطأ أثناء إضافة المسؤول:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المسؤول.' });
+  }
+});
+
+// API لتسجيل الدخول (Login) للمسؤولين
+app.post('/adminLogin', async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'يرجى تقديم البريد الإلكتروني وكلمة المرور.' });
+  }
+
+  try {
+    const admin = await Admin.findOne({ email });
+
+    if (!admin) {
+      return res.status(404).json({ error: 'المسؤول غير موجود.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'كلمة المرور غير صحيحة.' });
+    }
+
+    // إنشاء توكن
+    const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    res.status(200).json({ message: 'تم تسجيل الدخول بنجاح.', token });
+  } catch (error) {
+    console.error('خطأ أثناء تسجيل الدخول:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء تسجيل الدخول.' });
+  }
+});
+
+// Middleware للتحقق من التوكن
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1]; // استخراج التوكن من الهيدر
+
+  if (!token) {
+    return res.status(401).json({ error: 'لم يتم توفير التوكن.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // التحقق من صحة التوكن
+    req.user = decoded;  // تخزين معلومات المسؤول في الطلب
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: 'التوكن غير صالح أو منتهي الصلاحية.' });
+  }
+};
+
+
+
+
+
 
 // تشغيل السيرفر
 app.listen(PORT, () => {
