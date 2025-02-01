@@ -15,17 +15,23 @@ const Appointment = require('./models/Appointment');
 const Article = require('./models/Article');
 const Admin = require('./models/Admin'); // استيراد النموذج
 const { verifyToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
-
+const { authenticateToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
 const app = express();
 app.use(cors()); // تفعيل CORS لجميع الطلبات
 app.use(bodyParser.json()); // إعداد body-parser لمعالجة بيانات JSON
 
 const PORT = process.env.PORT || 3000;
 
-// اتصال بقاعدة البيانات MongoDB
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .then(() => console.log("تم الاتصال بقاعدة البيانات MongoDB بنجاح"))
-  .catch(err => console.log("فشل الاتصال بقاعدة البيانات", err));
+  mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  })
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((error) => {
+    console.error('Error connecting to MongoDB', error);
+  });
 
 
 // API لجلب جميع المستخدمين
@@ -105,39 +111,40 @@ app.get('/getAvailableTimes/:date', async (req, res) => {
 
 app.post('/addYearAppointments', async (req, res) => {
   try {
-    const year = 2025; // السنة المحددة
-    const startDate = new Date(`${year}-01-01T08:00:00`); // بداية السنة 2025
-    const endDate = new Date(`${year}-12-31T17:00:00`); // نهاية السنة 2025
+    const year = 2025; // السنة المطلوبة
+    const startDate = new Date(`${year}-01-01T00:00:00Z`); // بداية اليوم بتوقيت UTC
+    const endDate = new Date(`${year}-12-31T23:59:59Z`); // نهاية آخر يوم في السنة
 
     const appointments = []; // مصفوفة لتخزين المواعيد
 
     for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-      for (let hour = 8; hour <= 17; hour++) {
-        const appointmentTime = new Date(date);
-        appointmentTime.setHours(hour);
+      for (let hour = 9; hour < 18; hour++) { // من 9 صباحًا حتى 17:30 مساءً
+        for (let minute of [0, 30]) { // كل نصف ساعة (00 و 30)
+          const appointmentTime = new Date(date);
+          appointmentTime.setUTCHours(hour, minute, 0, 0); // ضبط الساعة والدقيقة بتوقيت UTC
 
-        appointments.push({
-          appointment_id: `${date.toISOString().split('T')[0]}-${hour}`, // معرف الموعد
-          date: appointmentTime.toISOString().split('T')[0], // تاريخ الموعد
-          time: appointmentTime.toISOString().split('T')[1].split('.')[0], // وقت الموعد
-          status: 'available', // حالة الموعد (متاح)
-          patient_id: null, // لا يوجد مريض حالياً
-          doctor_id: 'dr123', // معرف الطبيب الافتراضي
-        });
+          appointments.push({
+            appointment_id: `${appointmentTime.toISOString().split('T')[0]}-${hour}:${minute === 0 ? '00' : '30'}`, // معرف الموعد
+            date: appointmentTime.toISOString().split('T')[0], // تاريخ الموعد
+            time: appointmentTime.toISOString().split('T')[1].split('.')[0], // وقت الموعد (ساعات:دقائق:ثواني)
+            status: 'available', // حالة الموعد (متاح)
+            patient_id: null, // لا يوجد مريض حالياً
+            doctor_id: 'dr123', // معرف الطبيب الافتراضي
+          });
+        }
       }
     }
 
-    // إضافة المواعيد إلى MongoDB دفعة واحدة باستخدام Promise.all
+    // إضافة المواعيد إلى MongoDB دفعة واحدة
     await Appointment.insertMany(appointments);
 
-    res.status(200).json({ message: 'تم إضافة مواعيد السنة بنجاح!' });
+    res.status(200).json({ message: 'تمت إضافة مواعيد السنة 2025 بنجاح!' });
   } catch (error) {
     console.error('خطأ أثناء إضافة مواعيد السنة:', error);
     res.status(500).json({ error: 'حدث خطأ أثناء إضافة مواعيد السنة' });
   }
 });
 
-// API لإضافة مستخدم
 app.post('/addUser', async (req, res) => {
   const { fullName, email, phone, contactMethod, consultationType, additionalInfo } = req.body;
 
@@ -263,91 +270,380 @@ app.get('/getAllArticles', async (req, res) => {
 });
 
 //DASHBOARD
-// API لتسجيل الدخول والحصول على توكن
-// API لإضافة Admin (مسؤول)
+// // إضافة مسؤول جديد إلى قاعدة البيانات
 app.post('/addAdmin', async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, email, password, role } = req.body;
 
-  if (!fullName || !email || !password) {
-    return res.status(400).json({ error: 'يرجى توفير جميع الحقول المطلوبة.' });
+  // التحقق من القيم المدخلة
+  if (!fullName || !email || !password || !role) {
+    return res.status(400).json({ error: 'يرجى تقديم جميع الحقول المطلوبة.' });
   }
 
   try {
-    // تحقق من وجود المسؤول في قاعدة البيانات
+    // تحقق ما إذا كان البريد الإلكتروني مستخدم مسبقًا
     const existingAdmin = await Admin.findOne({ email });
     if (existingAdmin) {
-      return res.status(400).json({ error: 'البريد الإلكتروني مستخدم بالفعل.' });
+      return res.status(409).json({ error: 'البريد الإلكتروني مستخدم بالفعل.' });
     }
 
     // تشفير كلمة المرور
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // إضافة المسؤول الجديد إلى قاعدة البيانات
+    // إنشاء سجل جديد في قاعدة البيانات
     const newAdmin = new Admin({
       fullName,
       email,
       password: hashedPassword,
+      role,
     });
 
     await newAdmin.save();
-    res.status(200).json({ message: 'تم إضافة المسؤول بنجاح!' });
+    res.status(201).json({ message: 'تمت إضافة المسؤول بنجاح.' });
   } catch (error) {
     console.error('خطأ أثناء إضافة المسؤول:', error);
     res.status(500).json({ error: 'حدث خطأ أثناء إضافة المسؤول.' });
   }
 });
 
-// API لتسجيل الدخول (Login) للمسؤولين
+// // API لتسجيل الدخول
 app.post('/adminLogin', async (req, res) => {
   const { email, password } = req.body;
 
+  // التحقق من المدخلات
   if (!email || !password) {
     return res.status(400).json({ error: 'يرجى تقديم البريد الإلكتروني وكلمة المرور.' });
   }
 
   try {
+    // البحث عن المسؤول في قاعدة البيانات
     const admin = await Admin.findOne({ email });
 
     if (!admin) {
       return res.status(404).json({ error: 'المسؤول غير موجود.' });
     }
 
+    // التحقق من كلمة المرور
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
       return res.status(401).json({ error: 'كلمة المرور غير صحيحة.' });
     }
 
     // إنشاء توكن
-    const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, {
+      expiresIn: '1h',
+    });
 
-    res.status(200).json({ message: 'تم تسجيل الدخول بنجاح.', token });
+    res.status(200).json({ message: 'تم تسجيل الدخول بنجاح.', token, adminInfo: admin });
   } catch (error) {
     console.error('خطأ أثناء تسجيل الدخول:', error);
     res.status(500).json({ error: 'حدث خطأ أثناء تسجيل الدخول.' });
   }
 });
 
-// Middleware للتحقق من التوكن
-const authenticateToken = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1]; // استخراج التوكن من الهيدر
 
-  if (!token) {
-    return res.status(401).json({ error: 'لم يتم توفير التوكن.' });
+
+
+// ---------------------------
+// APIs المحمية للـ Dashboard
+// ---------------------------
+
+// API لجلب جميع المستخدمين
+app.get('/dashboard/getAllUsers', authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find();
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'لا يوجد مستخدمون.' });
+    }
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('خطأ أثناء جلب المستخدمين:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب المستخدمين.' });
+  }
+});
+
+// API لجلب جميع المرضى
+app.get('/dashboard/getAllPatients', authenticateToken, async (req, res) => {
+  try {
+    const patients = await Patient.find();
+    if (patients.length === 0) {
+      return res.status(404).json({ message: 'لا يوجد مرضى.' });
+    }
+    res.status(200).json(patients);
+  } catch (error) {
+    console.error('خطأ أثناء جلب المرضى:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب المرضى.' });
+  }
+});
+
+// API لجلب جميع المواعيد
+// app.get('/dashboard/getAllAppointments', authenticateToken, async (req, res) => {
+//   try {
+//     const appointments = await Appointment.find();
+//     if (appointments.length === 0) {
+//       return res.status(404).json({ message: 'لا يوجد مواعيد.' });
+//     }
+//     res.status(200).json(appointments);
+//   } catch (error) {
+//     console.error('خطأ أثناء جلب المواعيد:', error);
+//     res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد.' });
+//   }
+// });
+
+app.get('/dashboard/getAllAppointments', verifyToken, async (req, res) => {
+  try {
+      const appointments = await Appointment.find().populate('patient_id', 'name');
+      const formattedAppointments = appointments.map(app => ({
+          _id: app._id,
+          date: app.date,
+          time: app.time,
+          status: app.status,
+          patientName: app.patient_id ? app.patient_id.name : 'N/A'
+      }));
+      res.json(formattedAppointments);
+  } catch (error) {
+      res.status(500).json({ message: 'Error fetching appointments', error });
+  }
+});
+
+// API لجلب المواعيد التي حالتها 'booked'
+app.get('/dashboard/getBookedAppointments', authenticateToken, async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ status: 'booked' });
+    if (appointments.length === 0) {
+      return res.status(404).json({ message: 'لا يوجد مواعيد محجوزة.' });
+    }
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error('خطأ أثناء جلب المواعيد المحجوزة:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المحجوزة.' });
+  }
+});
+
+// API لجلب المواعيد التي حالتها 'booked'
+app.get('/dashboard/getLockedAppointments', authenticateToken, async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ status: 'locked' });
+    if (appointments.length === 0) {
+      return res.status(404).json({ message: 'لا يوجد مواعيد مقفلة.' });
+    }
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error('خطأ أثناء جلب المواعيد المقفلة:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المقفلة.' });
+  }
+});
+
+// API لجلب المواعيد التي حالتها 'booked'
+app.get('/dashboard/getAvailableAppointments', authenticateToken, async (req, res) => {
+  try {
+    const appointments = await Appointment.find({ status: 'available' });
+    if (appointments.length === 0) {
+      return res.status(404).json({ message: 'لا يوجد مواعيد متاحة.' });
+    }
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error('خطأ أثناء جلب المواعيد المتاحة:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المتاحة.' });
+  }
+});
+
+// API لإضافة مقال جديد
+app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
+  const { title, content, images, videos, keywords, sources, author, category, summary, tags, comments_enabled, status } = req.body;
+
+  if (!title || !content || !author || !category || !summary) {
+    return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET); // التحقق من صحة التوكن
-    req.user = decoded;  // تخزين معلومات المسؤول في الطلب
-    next();
-  } catch (err) {
-    return res.status(403).json({ error: 'التوكن غير صالح أو منتهي الصلاحية.' });
+    const article = new Article({
+      title,
+      content,
+      images: images || [],
+      videos: videos || [],
+      keywords: keywords || [],
+      sources: sources || [],
+      author,
+      category,
+      summary,
+      tags: tags || [],
+      comments_enabled: comments_enabled || false,
+      status: status || 'Draft',
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    await article.save();
+    res.status(200).json({ message: 'تم إضافة المقال بنجاح!', articleId: article._id });
+  } catch (error) {
+    console.error('خطأ أثناء إضافة المقال:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المقال.' });
   }
-};
+});
 
+// API لجلب جميع المقالات
+app.get('/dashboard/getAllArticles', authenticateToken, async (req, res) => {
+  try {
+    const articles = await Article.find();
+    if (articles.length === 0) {
+      return res.status(404).json({ message: 'لا يوجد مقالات.' });
+    }
+    res.status(200).json(articles);
+  } catch (error) {
+    console.error('خطأ أثناء جلب المقالات:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب المقالات.' });
+  }
+});
 
+app.get('/dashboard/getArticle/:id', async (req, res) => {
+  try {
+    const articleId = req.params.id; // الحصول على ID من الرابط
+    const article = await Article.findById(articleId); // البحث عن المقال في قاعدة البيانات
+    if (!article) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    res.status(200).json(article); // إرسال المقال كاستجابة
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'An error occurred while fetching the article' });
+  }
+});
 
+// تحديث مقال بناءً على ID
+app.put('/dashboard/updateArticle/:id', async (req, res) => {
+  try {
+    console.log( req.body)
+    const articleId = req.params.id;
+    const updatedData = req.body;
 
+    // التأكد من أن المقال موجود
+    const article = await Article.findById(articleId);
+    if (!article) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
 
+    // تحديث بيانات المقال في قاعدة البيانات
+    const updatedArticle = await Article.findByIdAndUpdate(
+      articleId,
+      updatedData,
+      { new: true } // إرجاع المقال بعد التحديث
+    );
+
+    res.json({ message: 'Article updated successfully', article: updatedArticle });
+  } catch (error) {
+    console.error('Error updating article:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// تعديل حالة المقال (Published / Draft)
+app.put('/dashboard/updateArticleStatus/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    const updatedArticle = await Article.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    );
+    if (!updatedArticle) {
+      return res.status(404).json({ message: 'Article not found' });
+    }
+    res.json(updatedArticle);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating article status', error });
+  }
+});
+
+app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
+  try {
+    const {
+      title,
+      content,
+      images,
+      videos,
+      keywords,
+      sources,
+      author,
+      category,
+      summary,
+      tags,
+      comments_enabled,
+      status
+    } = req.body;
+
+    // تحقق من الحقول المطلوبة
+    if (!title || !content || !author || !category || !summary) {
+      return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
+    }
+
+    // إنشاء المقال الجديد
+    const article = new Article({
+      title,
+      content,
+      images: images || [],
+      videos: videos || [],
+      keywords: keywords || [],
+      sources: sources || [],
+      author,
+      category,
+      summary,
+      tags: tags || [],
+      comments_enabled: comments_enabled || false,
+      status: status || 'Draft',
+      created_at: new Date(),
+      updated_at: new Date(),
+    });
+
+    // حفظ المقال في قاعدة البيانات
+    await article.save();
+
+    res.status(201).json({ message: 'تم إضافة المقال بنجاح!', articleId: article._id });
+
+  } catch (error) {
+    console.error('خطأ أثناء إضافة المقال:', error);
+    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المقال.' });
+  }
+});
+
+// ✅ API لحذف المقال
+app.delete('/dashboard/deleteArticle/:id', verifyToken, async (req, res) => {
+  try {
+      const articleId = req.params.id;
+      const deletedArticle = await Article.findByIdAndDelete(articleId);
+      
+      if (!deletedArticle) {
+          return res.status(404).json({ message: 'Article not found.' });
+      }
+
+      res.json({ message: 'Article deleted successfully.' });
+  } catch (error) {
+      res.status(500).json({ message: 'Error deleting article.', error });
+  }
+});
+
+app.put('/dashboard/updateAppointment/:id', authenticateToken, async (req, res) => {
+  try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // التحقق من الحالة الجديدة
+      if (!["available", "booked", "locked"].includes(status)) {
+          return res.status(400).json({ message: "Invalid status value" });
+      }
+
+      // البحث عن الموعد وتحديث حالته
+      const appointment = await Appointment.findByIdAndUpdate(id, { status }, { new: true });
+
+      if (!appointment) {
+          return res.status(404).json({ message: "Appointment not found" });
+      }
+
+      res.status(200).json({ message: "Appointment updated successfully", appointment });
+  } catch (error) {
+      console.error("Error updating appointment:", error);
+      res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 // تشغيل السيرفر
 app.listen(PORT, () => {

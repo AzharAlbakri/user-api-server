@@ -22,4 +22,21 @@ function verifyToken(req, res, next) {
   }
 }
 
-module.exports = { generateToken, verifyToken };
+// Middleware للتحقق من التوكن
+const authenticateToken = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'لم يتم توفير التوكن.' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET); // التحقق من صحة التوكن
+    req.user = decoded; // تخزين معلومات المستخدم
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: 'التوكن غير صالح أو منتهي الصلاحية.' });
+  }
+};
+
+module.exports = { generateToken, verifyToken, authenticateToken };
