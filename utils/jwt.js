@@ -1,7 +1,12 @@
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+
+const Account = require('../models/Account'); // تأكد من تعديل هذا المسار حسب مكان النموذج في مشروعك
+
 
 // إنشاء توكن JWT
 function generateToken(payload) {
+  console.log(jwt);
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' }); // تنتهي الصلاحية خلال ساعة
 }
 

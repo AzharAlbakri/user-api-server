@@ -1,9 +1,13 @@
+const session = require('express-session'); // لاستخدام الجلسات
 const cors = require('cors');
 const express = require('express');
 const bodyParser = require('body-parser');
+const authRoutes = require('./routes/auth');
+const passport = require('./utils/passport'); // استيراد ملف passport.js
 const mongoose = require('mongoose');
 require('dotenv').config();
 
+const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -16,22 +20,93 @@ const Article = require('./models/Article');
 const Admin = require('./models/Admin'); // استيراد النموذج
 const { verifyToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
 const { authenticateToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
+
 const app = express();
 app.use(cors()); // تفعيل CORS لجميع الطلبات
 app.use(bodyParser.json()); // إعداد body-parser لمعالجة بيانات JSON
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
-  mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
   .then(() => {
     console.log('Connected to MongoDB');
   })
   .catch((error) => {
     console.error('Error connecting to MongoDB', error);
   });
+
+// ربط routes الخاصة بالتسجيل
+app.use('/api/auth', authRoutes);
+
+
+//لتسجيل المستخدمين عبر جوجل ومايكرسوفت
+// إعداد الجلسات
+// app.use(session({
+//   secret: process.env.SESSION_SECRET,
+//   resave: false,
+//   saveUninitialized: true
+// }));
+// app.use(passport.initialize());
+// app.use(passport.session());
+
+app.use(express.json()); // لضمان قراءة الـ body
+
+app.use(cookieParser()); // ✅ إضافة `cookie-parser`
+
+// ✅ استخدم `express-session` قبل `passport.initialize()`
+app.use(session({
+    secret: process.env.SESSION_SECRET,  // استبدله بمفتاح سري قوي
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } // تأكد أن `secure: false` عند التطوير
+}));
+// ✅ تهيئة Passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+
+
+// إعدادات مسار تسجيل الدخول عبر جوجل
+app.get('/api/auth/google', passport.authenticate('google', {
+  scope: ['profile', 'email']
+}));
+
+// إعدادات مسار رد جوجل
+app.get('/api/auth/google/callback', passport.authenticate('google', {
+  failureRedirect: '/login'
+}), (req, res) => {
+  // نجاح التسجيل أو تسجيل الدخول
+  res.redirect('/'); // يمكنك توجيه المستخدم إلى صفحة معينة بعد النجاح
+});
+
+// إعدادات مسار تسجيل الدخول عبر مايكروسوفت
+app.get('/api/auth/microsoft', passport.authenticate('microsoft', {
+  scope: ['user.read', 'mail.read']
+}));
+
+// إعدادات مسار رد مايكروسوفت
+app.get('/api/auth/microsoft/callback', passport.authenticate('microsoft', {
+  failureRedirect: '/login'
+}), (req, res) => {
+  // نجاح التسجيل أو تسجيل الدخول
+  res.redirect('/profile'); // يمكنك توجيه المستخدم إلى صفحة معينة بعد النجاح
+});
+
+// صفحة البروفايل
+app.get('/', (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'User not authenticated' });
+  }
+  console.log("*********", res)
+  res.json({
+    fullName: req.user.fullName,
+    email: req.user.email,
+    registrationType: req.user.registrationType,
+  });
+});
 
 
 // API لجلب جميع المستخدمين
@@ -79,11 +154,11 @@ app.get('/getAllAppointments', async (req, res) => {
 app.get('/getBookedAppointments', async (req, res) => {
   try {
     const appointments = await Appointment.find({ status: 'booked' });
-    
+
     if (appointments.length === 0) {
       return res.status(404).json({ message: 'لا يوجد مواعيد محجوزة.' });
     }
-    
+
     res.status(200).json(appointments);
   } catch (error) {
     console.error('خطأ أثناء جلب المواعيد المحجوزة:', error);
@@ -99,7 +174,7 @@ app.get('/getAvailableTimes/:date', async (req, res) => {
     const appointments = await Appointment.find({ date });
     const bookedTimes = appointments.filter(app => app.status === 'booked').map(app => app.time);
 
-    const allTimes = ["05:00:00","06:00:00","07:00:00","08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00", "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "18:00:00", "19:00:00", "20:00:00", "21:00:00", "22:00:00"];
+    const allTimes = ["05:00:00", "06:00:00", "07:00:00", "08:00:00", "09:00:00", "10:00:00", "11:00:00", "12:00:00", "13:00:00", "14:00:00", "15:00:00", "16:00:00", "17:00:00", "18:00:00", "19:00:00", "20:00:00", "21:00:00", "22:00:00"];
     const availableTimes = allTimes.filter(time => !bookedTimes.includes(time));
 
     res.status(200).json({ availableTimes });
@@ -391,17 +466,17 @@ app.get('/dashboard/getAllPatients', authenticateToken, async (req, res) => {
 
 app.get('/dashboard/getAllAppointments', verifyToken, async (req, res) => {
   try {
-      const appointments = await Appointment.find().populate('patient_id', 'name');
-      const formattedAppointments = appointments.map(app => ({
-          _id: app._id,
-          date: app.date,
-          time: app.time,
-          status: app.status,
-          patientName: app.patient_id ? app.patient_id.name : 'N/A'
-      }));
-      res.json(formattedAppointments);
+    const appointments = await Appointment.find().populate('patient_id', 'name');
+    const formattedAppointments = appointments.map(app => ({
+      _id: app._id,
+      date: app.date,
+      time: app.time,
+      status: app.status,
+      patientName: app.patient_id ? app.patient_id.name : 'N/A'
+    }));
+    res.json(formattedAppointments);
   } catch (error) {
-      res.status(500).json({ message: 'Error fetching appointments', error });
+    res.status(500).json({ message: 'Error fetching appointments', error });
   }
 });
 
@@ -512,7 +587,7 @@ app.get('/dashboard/getArticle/:id', async (req, res) => {
 // تحديث مقال بناءً على ID
 app.put('/dashboard/updateArticle/:id', async (req, res) => {
   try {
-    console.log( req.body)
+    console.log(req.body)
     const articleId = req.params.id;
     const updatedData = req.body;
 
@@ -608,44 +683,49 @@ app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
 // ✅ API لحذف المقال
 app.delete('/dashboard/deleteArticle/:id', verifyToken, async (req, res) => {
   try {
-      const articleId = req.params.id;
-      const deletedArticle = await Article.findByIdAndDelete(articleId);
-      
-      if (!deletedArticle) {
-          return res.status(404).json({ message: 'Article not found.' });
-      }
+    const articleId = req.params.id;
+    const deletedArticle = await Article.findByIdAndDelete(articleId);
 
-      res.json({ message: 'Article deleted successfully.' });
+    if (!deletedArticle) {
+      return res.status(404).json({ message: 'Article not found.' });
+    }
+
+    res.json({ message: 'Article deleted successfully.' });
   } catch (error) {
-      res.status(500).json({ message: 'Error deleting article.', error });
+    res.status(500).json({ message: 'Error deleting article.', error });
   }
 });
 
 app.put('/dashboard/updateAppointment/:id', authenticateToken, async (req, res) => {
   try {
-      const { id } = req.params;
-      const { status } = req.body;
+    const { id } = req.params;
+    const { status } = req.body;
 
-      // التحقق من الحالة الجديدة
-      if (!["available", "booked", "locked"].includes(status)) {
-          return res.status(400).json({ message: "Invalid status value" });
-      }
+    // التحقق من الحالة الجديدة
+    if (!["available", "booked", "locked"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
 
-      // البحث عن الموعد وتحديث حالته
-      const appointment = await Appointment.findByIdAndUpdate(id, { status }, { new: true });
+    // البحث عن الموعد وتحديث حالته
+    const appointment = await Appointment.findByIdAndUpdate(id, { status }, { new: true });
 
-      if (!appointment) {
-          return res.status(404).json({ message: "Appointment not found" });
-      }
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
 
-      res.status(200).json({ message: "Appointment updated successfully", appointment });
+    res.status(200).json({ message: "Appointment updated successfully", appointment });
   } catch (error) {
-      console.error("Error updating appointment:", error);
-      res.status(500).json({ message: "Internal server error" });
+    console.error("Error updating appointment:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
 // تشغيل السيرفر
 app.listen(PORT, () => {
   console.log(`السيرفر يعمل على: http://localhost:${PORT}`);
+
 });
+
+// app.listen(PORT, '0.0.0.0', () => {
+//   console.log(`✅ Server running on http://192.168.1.33:${PORT}`);
+// });
