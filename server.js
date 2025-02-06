@@ -20,9 +20,11 @@ const Article = require('./models/Article');
 const Admin = require('./models/Admin'); // استيراد النموذج
 const { verifyToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
 const { authenticateToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
+const Service = require('./models/Service');
 
 const app = express();
 app.use(cors()); // تفعيل CORS لجميع الطلبات
+
 app.use(bodyParser.json()); // إعداد body-parser لمعالجة بيانات JSON
 
 const PORT = process.env.PORT || 8080;
@@ -719,6 +721,41 @@ app.put('/dashboard/updateAppointment/:id', authenticateToken, async (req, res) 
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+//Services
+// إضافة خدمة جديدة مع حماية API
+// الـ POST API لإضافة الخدمة
+app.post('/dashboard/addService',verifyToken, async (req, res) => {
+  try {
+    const { title, slug, subCategoryId, content } = req.body;
+
+    // التأكد من أن subCategoryId هو ObjectId
+    const validSubCategoryId = new mongoose.Types.ObjectId(subCategoryId);
+
+    // التأكد من أن التحويل تم بنجاح
+    if (!mongoose.Types.ObjectId.isValid(validSubCategoryId)) {
+      return res.status(400).json({ message: 'Invalid subCategoryId' });
+    }
+
+    // إنشاء كائن الخدمة الجديد
+    const newService = new Service({
+      title,
+      slug,
+      subCategoryId: validSubCategoryId, // استخدام الـ ObjectId الصحيح
+      content
+    });
+
+    // حفظ الخدمة في قاعدة البيانات
+    await newService.save();
+
+    // إرجاع الاستجابة بنجاح
+    res.status(201).json({ message: 'Service added successfully', service: newService });
+  } catch (err) {
+    console.error('Error adding service:', err);
+    res.status(500).json({ message: 'Error adding service', error: err.message });
+  }
+});
+
 
 // تشغيل السيرفر
 app.listen(PORT, () => {
