@@ -27,6 +27,9 @@ app.use(cors()); // تفعيل CORS لجميع الطلبات
 
 app.use(bodyParser.json()); // إعداد body-parser لمعالجة بيانات JSON
 
+
+
+
 const PORT = process.env.PORT || 8080;
 
 mongoose.connect(process.env.MONGO_URI, {
@@ -55,6 +58,7 @@ app.use('/api/auth', authRoutes);
 // app.use(passport.session());
 
 app.use(express.json()); // لضمان قراءة الـ body
+app.use(express.urlencoded({ extended: true })); // لفهم البيانات بصيغة x-www-form-urlencoded
 
 app.use(cookieParser()); // ✅ إضافة `cookie-parser`
 
@@ -346,8 +350,151 @@ app.get('/getAllArticles', async (req, res) => {
   }
 });
 
-//DASHBOARD
-// // إضافة مسؤول جديد إلى قاعدة البيانات
+// SERVICES
+// جلب جميع الخدمات
+app.get('/services', async (req, res) => {
+  try {
+      //const { lang } = req.query; // الحصول على اللغة من الـ query parameters
+      const { lang } = "en"; // الحصول على اللغة من الـ query parameters
+
+      const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
+
+      if (services.length === 0) return res.status(404).json({ message: "No services found" });
+
+      // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
+      if (!lang) return res.json(services);
+
+      // تجهيز البيانات حسب اللغة المطلوبة
+      const localizedServices = services.map(service => ({
+          serviceId: service.serviceId,
+          title: service.title[lang] || service.title['en'],
+          description: service.description[lang] || service.description['en'],
+          imageUrl: service.imageUrl,
+          categories: service.categories.map(category => ({
+              categoryId: category.categoryId,
+              title: category.title[lang] || category.title['en'],
+              description: category.description[lang] || category.description['en'],
+              imageUrl: category.imageUrl,
+              subcategories: category.subcategories.map(sub => ({
+                  subcategoryId: sub.subcategoryId,
+                  title: sub.title[lang] || sub.title['en'],
+                  description: sub.description[lang] || sub.description['en'],
+                  imageUrl: sub.imageUrl,
+                  content: sub.content[lang] || sub.content['en']
+              }))
+          }))
+      }));
+
+      res.json(localizedServices);
+  } catch (error) {
+      res.status(500).json({ error: error.message });
+  }
+});
+
+// API لاسترجاع بيانات الخدمة
+app.get('/service/:id', async (req, res) => {
+  try {
+      const { lang } = req.query;
+      const service = await Service.findOne({ serviceId: req.params.id });
+
+      if (!service) return res.status(404).json({ message: "Service not found" });
+
+      if (!lang) return res.json(service);
+
+      const localizedService = {
+          serviceId: service.serviceId,
+          title: service.title[lang] || service.title['en'],
+          description: service.description[lang] || service.description['en'],
+          imageUrl: service.imageUrl,
+          categories: service.categories.map(category => ({
+              categoryId: category.categoryId,
+              title: category.title[lang] || category.title['en'],
+              description: category.description[lang] || category.description['en'],
+              imageUrl: category.imageUrl,
+              subcategories: category.subcategories.map(sub => ({
+                  subcategoryId: sub.subcategoryId,
+                  title: sub.title[lang] || sub.title['en'],
+                  description: sub.description[lang] || sub.description['en'],
+                  imageUrl: sub.imageUrl,
+                  content: sub.content[lang] || sub.content['en']
+              }))
+          }))
+      };
+
+      res.json(localizedService);
+  } catch (error) {
+      res.status(500).json({ error: error.message });
+  }
+});
+
+// جلب الفئات لخدمة معينة
+app.get('/service/:serviceId/categories', async (req, res) => {
+  try {
+    console.log("req.params.serviceId", req.params.serviceId);
+      const service = await Service.findOne({ serviceId: req.params.serviceId });
+      if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+      res.json(service.categories);
+  } catch (err) {
+      res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
+  }
+});
+
+// جلب الفئات الفرعية لفئة معينة
+app.get('/service/:serviceId/category/:categoryId/subcategories', async (req, res) => {
+  try {
+      console.log("req.params.serviceId:", req.params.serviceId);
+
+      // البحث عن الخدمة باستخدام ObjectId
+      const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
+      console.log("Service Found:", service);
+
+      if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+
+      // البحث عن الفئة باستخدام ObjectId
+      const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
+      console.log("Category Found:", category);
+
+      if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+
+      // إرجاع الفئات الفرعية
+      res.json(category.subcategories);
+
+  } catch (err) {
+      console.error("Error:", err);
+      res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات الفرعية' });
+  }
+});
+
+app.get('/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', async (req, res) => {
+  try {
+    const { serviceId, categoryId, subcategoryId } = req.params;
+
+    // البحث عن الخدمة باستخدام serviceId
+    const service = await Service.findOne({ serviceId });
+    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+
+    // البحث عن الفئة باستخدام categoryId
+    const category = service.categories.find(cat => cat.categoryId.toString() === categoryId);
+    if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+
+    // البحث عن الفئة الفرعية باستخدام subcategoryId
+    const subcategory = category.subcategories.find(sub => sub.subcategoryId.toString() === subcategoryId);
+    if (!subcategory) return res.status(404).json({ error: 'الفئة الفرعية غير موجودة' });
+
+    // إرجاع بيانات الفئة الفرعية
+    res.json(subcategory);
+  } catch (err) {
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئة الفرعية' });
+  }
+});
+
+
+
+
+
+
+//#region DASHBOARD
+// إضافة مسؤول جديد إلى قاعدة البيانات
 app.post('/addAdmin', async (req, res) => {
   const { fullName, email, password, role } = req.body;
 
@@ -416,9 +563,6 @@ app.post('/adminLogin', async (req, res) => {
     res.status(500).json({ error: 'حدث خطأ أثناء تسجيل الدخول.' });
   }
 });
-
-
-
 
 // ---------------------------
 // APIs المحمية للـ Dashboard
@@ -723,26 +867,34 @@ app.put('/dashboard/updateAppointment/:id', authenticateToken, async (req, res) 
 });
 
 //Services
-// إضافة خدمة جديدة مع حماية API
-// الـ POST API لإضافة الخدمة
-app.post('/dashboard/addService',verifyToken, async (req, res) => {
+// لإضافة خدمة جديدة
+app.post('/dashboard/addService', verifyToken, async (req, res) => {
   try {
-    const { title, slug, subCategoryId, content } = req.body;
+    console.log("Received Data:", req.body); // لفحص البيانات القادمة من العميل
 
-    // التأكد من أن subCategoryId هو ObjectId
-    const validSubCategoryId = new mongoose.Types.ObjectId(subCategoryId);
+    const { title, description, imageUrl, categories } = req.body;
 
-    // التأكد من أن التحويل تم بنجاح
-    if (!mongoose.Types.ObjectId.isValid(validSubCategoryId)) {
-      return res.status(400).json({ message: 'Invalid subCategoryId' });
+    // التحقق من صحة البيانات الأساسية
+    if (!title || !description || !imageUrl || !categories || !Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ message: "Missing required fields or invalid categories" });
     }
 
-    // إنشاء كائن الخدمة الجديد
+    // إنشاء كائن الخدمة الجديد بدون `serviceId` (MongoDB سيولده تلقائيًا)
     const newService = new Service({
       title,
-      slug,
-      subCategoryId: validSubCategoryId, // استخدام الـ ObjectId الصحيح
-      content
+      description,
+      imageUrl,
+      categories: categories.map(category => ({
+        title: category.title,
+        description: category.description,
+        imageUrl: category.imageUrl,
+        subcategories: category.subcategories.map(sub => ({
+          title: sub.title,
+          description: sub.description,
+          imageUrl: sub.imageUrl,
+          content: sub.content
+        }))
+      }))
     });
 
     // حفظ الخدمة في قاعدة البيانات
@@ -750,11 +902,237 @@ app.post('/dashboard/addService',verifyToken, async (req, res) => {
 
     // إرجاع الاستجابة بنجاح
     res.status(201).json({ message: 'Service added successfully', service: newService });
+
   } catch (err) {
     console.error('Error adding service:', err);
     res.status(500).json({ message: 'Error adding service', error: err.message });
   }
 });
+
+//لجلب جميع الخدمات
+app.get('/dashboard/services', authenticateToken, async (req, res) => {
+    try {
+        const { lang } = req.query; // الحصول على اللغة من الـ query parameters
+        const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
+
+        if (services.length === 0) return res.status(404).json({ message: "No services found" });
+
+        // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
+        if (!lang) return res.json(services);
+
+        // تجهيز البيانات حسب اللغة المطلوبة
+        const localizedServices = services.map(service => ({
+            serviceId: service.serviceId,
+            title: service.title[lang] || service.title['en'],
+            description: service.description[lang] || service.description['en'],
+            imageUrl: service.imageUrl,
+            categories: service.categories.map(category => ({
+                categoryId: category.categoryId,
+                title: category.title[lang] || category.title['en'],
+                description: category.description[lang] || category.description['en'],
+                imageUrl: category.imageUrl,
+                subcategories: category.subcategories.map(sub => ({
+                    subcategoryId: sub.subcategoryId,
+                    title: sub.title[lang] || sub.title['en'],
+                    description: sub.description[lang] || sub.description['en'],
+                    imageUrl: sub.imageUrl,
+                    content: sub.content[lang] || sub.content['en']
+                }))
+            }))
+        }));
+
+        res.json(localizedServices);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// API لاسترجاع بيانات الخدمة
+app.get('/dashboard/service/:id', authenticateToken, async (req, res) => {
+    try {
+        const { lang } = req.query;
+        const service = await Service.findOne({ serviceId: req.params.id });
+
+        if (!service) return res.status(404).json({ message: "Service not found" });
+
+        if (!lang) return res.json(service);
+
+        const localizedService = {
+            serviceId: service.serviceId,
+            title: service.title[lang] || service.title['en'],
+            description: service.description[lang] || service.description['en'],
+            imageUrl: service.imageUrl,
+            categories: service.categories.map(category => ({
+                categoryId: category.categoryId,
+                title: category.title[lang] || category.title['en'],
+                description: category.description[lang] || category.description['en'],
+                imageUrl: category.imageUrl,
+                subcategories: category.subcategories.map(sub => ({
+                    subcategoryId: sub.subcategoryId,
+                    title: sub.title[lang] || sub.title['en'],
+                    description: sub.description[lang] || sub.description['en'],
+                    imageUrl: sub.imageUrl,
+                    content: sub.content[lang] || sub.content['en']
+                }))
+            }))
+        };
+
+        res.json(localizedService);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// تحديث حالة الخدمة أو الفئة أو الفئة الفرعية
+app.patch('/dashboard/:type/:id/status', verifyToken, async (req, res) => {
+  const { type, id } = req.params;
+  const { status } = req.body;
+  
+  try {
+      let updatedService;
+      if (type === 'service') {
+          updatedService = await Service.findOneAndUpdate(
+              { serviceId: id },
+              { status },
+              { new: true }
+          );
+      } else if (type === 'category') {
+          updatedService = await Service.findOneAndUpdate(
+              { 'categories.categoryId': id },
+              { $set: { 'categories.$.status': status } },
+              { new: true }
+          );
+      } else if (type === 'subcategory') {
+          updatedService = await Service.findOneAndUpdate(
+              { 'categories.subcategories.subcategoryId': id },
+              { $set: { 'categories.$[].subcategories.$[sub].status': status } },
+              { arrayFilters: [{ 'sub.subcategoryId': id }], new: true }
+          );
+      } else {
+          return res.status(400).json({ error: 'نوع غير صحيح' });
+      }
+      res.json(updatedService);
+  } catch (err) {
+      res.status(500).json({ error: 'حدث خطأ أثناء تحديث الحالة' });
+  }
+});
+
+// حذف خدمة
+app.delete('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
+  try {
+      await Service.findOneAndDelete({ serviceId: req.params.serviceId });
+      res.json({ message: 'تم حذف الخدمة بنجاح' });
+  } catch (err) {
+      res.status(500).json({ error: 'حدث خطأ أثناء حذف الخدمة' });
+  }
+});
+
+// حذف فئة لخدمة معينة
+// to do
+//حذف فئة فرعية داخل فئة
+// to do
+
+// جلب الفئات لخدمة معينة
+app.get('/dashboard/service/:serviceId/categories', verifyToken, async (req, res) => {
+  try {
+      const service = await Service.findOne({ serviceId: req.params.serviceId });
+      if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+      res.json(service.categories);
+  } catch (err) {
+      res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
+  }
+});
+
+// جلب الفئات الفرعية لفئة معينة
+app.get('/dashboard/service/:serviceId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
+  try {
+    console.log("req.params.serviceId:", req.params.serviceId);
+    
+    // البحث عن الخدمة باستخدام ObjectId
+    const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
+    console.log("Service Found:", service);
+
+    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+
+    // البحث عن الفئة باستخدام ObjectId
+    const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
+    console.log("Category Found:", category);
+
+    if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+
+    // إرجاع الفئات الفرعية
+    res.json(category.subcategories);
+
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات الفرعية' });
+  }
+});
+
+// ✅ تحديث بيانات الخدمة
+app.put('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
+  try {
+      const { serviceId } = req.params;
+      console.log("req.params", req.params);
+
+      const updatedData = req.body;
+
+      console.log("updatedData", updatedData);
+
+      const service = await Service.findOneAndUpdate(
+          { serviceId },
+          { $set: updatedData },
+          { new: true }
+      );
+
+      if (!service) return res.status(404).json({ message: 'Service not found' });
+
+      res.json(service);
+  } catch (error) {
+      res.status(500).json({ message: 'Error updating service', error });
+  }
+});
+
+// ✅ تحديث بيانات الفئة داخل خدمة
+app.put('/dashboard/service/:serviceId/category/:categoryId', verifyToken ,async (req, res) => {
+  try {
+      const { serviceId, categoryId } = req.params;
+      const updatedData = req.body;
+
+      const service = await Service.findOneAndUpdate(
+          { serviceId, 'categories.categoryId': categoryId },
+          { $set: { 'categories.$': updatedData } },
+          { new: true }
+      );
+
+      if (!service) return res.status(404).json({ message: 'Category not found' });
+
+      res.json(service);
+  } catch (error) {
+      res.status(500).json({ message: 'Error updating category', error });
+  }
+});
+
+// ✅ تحديث بيانات الفئة الفرعية داخل فئة
+app.put('/dashboard/service/:serviceId/category/:categoryId/subcategory/:subcategoryId',verifyToken, async (req, res) => {
+  try {
+      const { serviceId, categoryId, subcategoryId } = req.params;
+      const updatedData = req.body;
+
+      const service = await Service.findOneAndUpdate(
+          { serviceId, 'categories.categoryId': categoryId, 'categories.subcategories.subcategoryId': subcategoryId },
+          { $set: { 'categories.$[cat].subcategories.$[sub]': updatedData } },
+          { new: true, arrayFilters: [{ 'cat.categoryId': categoryId }, { 'sub.subcategoryId': subcategoryId }] }
+      );
+
+      if (!service) return res.status(404).json({ message: 'Subcategory not found' });
+
+      res.json(service);
+  } catch (error) {
+      res.status(500).json({ message: 'Error updating subcategory', error });
+  }
+});
+//#endregion
 
 
 // تشغيل السيرفر
@@ -762,7 +1140,3 @@ app.listen(PORT, () => {
   console.log(`السيرفر يعمل على: http://localhost:${PORT}`);
 
 });
-
-// app.listen(PORT, '0.0.0.0', () => {
-//   console.log(`✅ Server running on http://192.168.1.33:${PORT}`);
-// });
