@@ -8,57 +8,11 @@ require('dotenv').config();
 
 // بيانات جوجل ومايكروسوفت
 // بيانات جوجل ومايكروسوفت من .env
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
-const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
+// const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+// const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+// const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
+// const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
 
-
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,  // استخدم process.env بدلاً من المتغيرات المباشرة
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: 'http://localhost:3000/api/auth/google/callback'
-}, async (accessToken, refreshToken, profile, done) => {
-    console.log('✅ Google profile received:', profile); // ✅ تحقق من استلام البيانات
-    try {
-        console.log('Google profile:', profile); // طباعة البيانات للتحقق من استقبالها
-
-        // تحقق مما إذا كان البريد الإلكتروني موجودًا في قاعدة البيانات
-        let account = await Account.findOne({ email: profile.emails[0].value });
-
-        if (!account) {
-            // إنشاء حساب جديد إذا لم يكن موجودًا
-            account = new Account({
-                fullName: profile.displayName,
-                email: profile.emails[0].value,
-                password: '', // لا نحتاج كلمة مرور للمصادقة عبر جوجل
-                // authType: 'google',
-                registrationType: 'google' // ✅ تحديد نوع التسجيل
-            });
-            await account.save();
-        }
-
-        return done(null, account);
-    } catch (error) {
-        console.error('Google Auth Error:', error);
-        return done(error, null);
-    }
-}));
-
-// تسلسل المستخدم إلى الجلسة
-passport.serializeUser((user, done) => {
-    done(null, user.id);
-});
-
-// إلغاء تسلسل المستخدم من الجلسة
-passport.deserializeUser(async (id, done) => {
-    try {
-        const user = await Account.findById(id);
-        done(null, user);
-    } catch (error) {
-        done(error, null);
-    }
-});
 
 module.exports = passport;
 
