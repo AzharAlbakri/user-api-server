@@ -1,4 +1,5 @@
 node_modules/
-*.json
+package-lock.json
+user-api-server-firebase-adminsdk-tqt8l-8a8e858efc.json.json
 .env
 firebase-config.js
