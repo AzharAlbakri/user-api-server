@@ -226,6 +226,7 @@ app.post('/addYearAppointments', async (req, res) => {
   }
 });
 
+// Request Consultation
 app.post('/addUser', async (req, res) => {
   const { fullName, email, phone, contactMethod, consultationType, additionalInfo } = req.body;
 
@@ -487,10 +488,6 @@ app.get('/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', a
     res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئة الفرعية' });
   }
 });
-
-
-
-
 
 
 //#region DASHBOARD
