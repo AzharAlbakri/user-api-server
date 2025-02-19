@@ -70,12 +70,12 @@ app.use(express.urlencoded({ extended: true })); // لفهم البيانات ب
 app.use(cookieParser()); // ✅ إضافة `cookie-parser`
 
 // ✅ استخدم `express-session` قبل `passport.initialize()`
-app.use(session({
-    secret: process.env.SESSION_SECRET,  // استبدله بمفتاح سري قوي
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: false } // تأكد أن `secure: false` عند التطوير
-}));
+// app.use(session({
+//     secret: process.env.SESSION_SECRET,  // استبدله بمفتاح سري قوي
+//     resave: false,
+//     saveUninitialized: true,
+//     cookie: { secure: false } // تأكد أن `secure: false` عند التطوير
+// }));
 // ✅ تهيئة Passport
 app.use(passport.initialize());
 app.use(passport.session());
