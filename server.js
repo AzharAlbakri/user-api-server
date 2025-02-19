@@ -76,6 +76,17 @@ app.use(cookieParser()); // ✅ إضافة `cookie-parser`
 //     saveUninitialized: true,
 //     cookie: { secure: false } // تأكد أن `secure: false` عند التطوير
 // }));
+
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'defaultSecretKey',
+  resave: false,
+  saveUninitialized: true
+}));
+
+
+
+
 // ✅ تهيئة Passport
 app.use(passport.initialize());
 app.use(passport.session());
