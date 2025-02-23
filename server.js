@@ -25,8 +25,11 @@ const Service = require('./models/Service');
 const app = express();
 app.use(cors()); // تفعيل CORS لجميع الطلبات
 
-app.use(bodyParser.json()); // إعداد body-parser لمعالجة بيانات JSON
+// app.use(bodyParser.json()); 
 
+// تعيين الحد الأقصى لحجم الطلب إلى 50 ميغابايت (يمكنك تغييره حسب الحاجة)
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 
 
