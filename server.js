@@ -1,3 +1,4 @@
+const path = require('path');
 const session = require('express-session'); // لاستخدام الجلسات
 const cors = require('cors');
 const express = require('express');
@@ -30,34 +31,9 @@ app.use(cors()); // تفعيل CORS لجميع الطلبات
 // تعيين الحد الأقصى لحجم الطلب إلى 50 ميغابايت (يمكنك تغييره حسب الحاجة)
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-
-
-
+// تقديم ملفات الترجمة من مجلد 'locales'
+app.use('/locales', express.static(path.join(__dirname, 'locales')));
 const PORT = process.env.PORT || 8080;
-
-// mongoose.connect(process.env.MONGO_URI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// })
-
-
-// mongoose.connect(process.env.MONGO_URI, {
-//   useNewUrlParser: true,
-//   useUnifiedTopology: true,
-// })
-
-//   .then(() => {
-//     console.log('Connected to MongoDB');
-//   })
-//   .catch((error) => {
-//     console.error('Error connecting to MongoDB', error);
-//   });
-
-
-// mongoose.connect(process.env.MONGO_URI)
-// .then(() => console.log('Connected to MongoDB'))
-// .catch(err => console.error('Error connecting to MongoDB', err));
-
 
 mongoose
   .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
@@ -105,6 +81,9 @@ app.use(session({
 // ✅ تهيئة Passport
 app.use(passport.initialize());
 app.use(passport.session());
+
+// لخدمة الملفات الثابتة (CSS، JavaScript، إلخ)
+app.use(express.static("public"));
 
 
 
