@@ -3,6 +3,11 @@ const session = require('express-session'); // لاستخدام الجلسات
 const cors = require('cors');
 const express = require('express');
 const bodyParser = require('body-parser');
+
+const redisClient = require("./config/redis");
+const getClinicSettings = require("./middleware/clinicMiddleware");
+
+
 const authRoutes = require('./routes/auth');
 const passport = require('./utils/passport'); // استيراد ملف passport.js
 const mongoose = require('mongoose');
@@ -12,6 +17,7 @@ const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
+const clinicRoutes = require("./routes/clinicRoutes");
 
 // استيراد نموذج المستخدم والمريض والمواعيد
 const User = require('./models/User');
@@ -22,6 +28,7 @@ const Admin = require('./models/Admin'); // استيراد النموذج
 const { verifyToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
 const { authenticateToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
 const Service = require('./models/Service');
+const Clinic = require('./models/Clinic');
 
 const app = express();
 app.use(cors()); // تفعيل CORS لجميع الطلبات
@@ -40,6 +47,7 @@ mongoose
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ Error connecting to MongoDB:", err));
 
+// app.use(getClinicSettings);  // استخدام Middleware لجلب إعدادات العيادة
 
 // ربط routes الخاصة بالتسجيل
 app.use('/api/auth', authRoutes);
@@ -85,8 +93,6 @@ app.use(passport.session());
 // لخدمة الملفات الثابتة (CSS، JavaScript، إلخ)
 app.use(express.static("public"));
 
-
-
 // إعدادات مسار تسجيل الدخول عبر جوجل
 app.get('/api/auth/google', passport.authenticate('google', {
   scope: ['profile', 'email']
@@ -130,6 +136,7 @@ app.get('/', (req, res) => {
 // API لجلب جميع المستخدمين
 app.get('/getAllUsers', async (req, res) => {
   try {
+    console.log("test1");
     const users = await User.find();
     if (users.length === 0) {
       return res.status(404).json({ message: 'لا يوجد مستخدمون.' });
@@ -367,76 +374,76 @@ app.get('/getAllArticles', async (req, res) => {
 // جلب جميع الخدمات
 app.get('/services', async (req, res) => {
   try {
-      //const { lang } = req.query; // الحصول على اللغة من الـ query parameters
-      const { lang } = "en"; // الحصول على اللغة من الـ query parameters
+    //const { lang } = req.query; // الحصول على اللغة من الـ query parameters
+    const { lang } = "en"; // الحصول على اللغة من الـ query parameters
 
-      const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
+    const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
 
-      if (services.length === 0) return res.status(404).json({ message: "No services found" });
+    if (services.length === 0) return res.status(404).json({ message: "No services found" });
 
-      // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
-      if (!lang) return res.json(services);
+    // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
+    if (!lang) return res.json(services);
 
-      // تجهيز البيانات حسب اللغة المطلوبة
-      const localizedServices = services.map(service => ({
-          serviceId: service.serviceId,
-          title: service.title[lang] || service.title['en'],
-          description: service.description[lang] || service.description['en'],
-          imageUrl: service.imageUrl,
-          categories: service.categories.map(category => ({
-              categoryId: category.categoryId,
-              title: category.title[lang] || category.title['en'],
-              description: category.description[lang] || category.description['en'],
-              imageUrl: category.imageUrl,
-              subcategories: category.subcategories.map(sub => ({
-                  subcategoryId: sub.subcategoryId,
-                  title: sub.title[lang] || sub.title['en'],
-                  description: sub.description[lang] || sub.description['en'],
-                  imageUrl: sub.imageUrl,
-                  content: sub.content[lang] || sub.content['en']
-              }))
-          }))
-      }));
+    // تجهيز البيانات حسب اللغة المطلوبة
+    const localizedServices = services.map(service => ({
+      serviceId: service.serviceId,
+      title: service.title[lang] || service.title['en'],
+      description: service.description[lang] || service.description['en'],
+      imageUrl: service.imageUrl,
+      categories: service.categories.map(category => ({
+        categoryId: category.categoryId,
+        title: category.title[lang] || category.title['en'],
+        description: category.description[lang] || category.description['en'],
+        imageUrl: category.imageUrl,
+        subcategories: category.subcategories.map(sub => ({
+          subcategoryId: sub.subcategoryId,
+          title: sub.title[lang] || sub.title['en'],
+          description: sub.description[lang] || sub.description['en'],
+          imageUrl: sub.imageUrl,
+          content: sub.content[lang] || sub.content['en']
+        }))
+      }))
+    }));
 
-      res.json(localizedServices);
+    res.json(localizedServices);
   } catch (error) {
-      res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
 // API لاسترجاع بيانات الخدمة
 app.get('/service/:id', async (req, res) => {
   try {
-      const { lang } = req.query;
-      const service = await Service.findOne({ serviceId: req.params.id });
+    const { lang } = req.query;
+    const service = await Service.findOne({ serviceId: req.params.id });
 
-      if (!service) return res.status(404).json({ message: "Service not found" });
+    if (!service) return res.status(404).json({ message: "Service not found" });
 
-      if (!lang) return res.json(service);
+    if (!lang) return res.json(service);
 
-      const localizedService = {
-          serviceId: service.serviceId,
-          title: service.title[lang] || service.title['en'],
-          description: service.description[lang] || service.description['en'],
-          imageUrl: service.imageUrl,
-          categories: service.categories.map(category => ({
-              categoryId: category.categoryId,
-              title: category.title[lang] || category.title['en'],
-              description: category.description[lang] || category.description['en'],
-              imageUrl: category.imageUrl,
-              subcategories: category.subcategories.map(sub => ({
-                  subcategoryId: sub.subcategoryId,
-                  title: sub.title[lang] || sub.title['en'],
-                  description: sub.description[lang] || sub.description['en'],
-                  imageUrl: sub.imageUrl,
-                  content: sub.content[lang] || sub.content['en']
-              }))
-          }))
-      };
+    const localizedService = {
+      serviceId: service.serviceId,
+      title: service.title[lang] || service.title['en'],
+      description: service.description[lang] || service.description['en'],
+      imageUrl: service.imageUrl,
+      categories: service.categories.map(category => ({
+        categoryId: category.categoryId,
+        title: category.title[lang] || category.title['en'],
+        description: category.description[lang] || category.description['en'],
+        imageUrl: category.imageUrl,
+        subcategories: category.subcategories.map(sub => ({
+          subcategoryId: sub.subcategoryId,
+          title: sub.title[lang] || sub.title['en'],
+          description: sub.description[lang] || sub.description['en'],
+          imageUrl: sub.imageUrl,
+          content: sub.content[lang] || sub.content['en']
+        }))
+      }))
+    };
 
-      res.json(localizedService);
+    res.json(localizedService);
   } catch (error) {
-      res.status(500).json({ error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -444,37 +451,37 @@ app.get('/service/:id', async (req, res) => {
 app.get('/service/:serviceId/categories', async (req, res) => {
   try {
     console.log("req.params.serviceId", req.params.serviceId);
-      const service = await Service.findOne({ serviceId: req.params.serviceId });
-      if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
-      res.json(service.categories);
+    const service = await Service.findOne({ serviceId: req.params.serviceId });
+    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    res.json(service.categories);
   } catch (err) {
-      res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
   }
 });
 
 // جلب الفئات الفرعية لفئة معينة
 app.get('/service/:serviceId/category/:categoryId/subcategories', async (req, res) => {
   try {
-      console.log("req.params.serviceId:", req.params.serviceId);
+    console.log("req.params.serviceId:", req.params.serviceId);
 
-      // البحث عن الخدمة باستخدام ObjectId
-      const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
-      console.log("Service Found:", service);
+    // البحث عن الخدمة باستخدام ObjectId
+    const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
+    console.log("Service Found:", service);
 
-      if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
 
-      // البحث عن الفئة باستخدام ObjectId
-      const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
-      console.log("Category Found:", category);
+    // البحث عن الفئة باستخدام ObjectId
+    const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
+    console.log("Category Found:", category);
 
-      if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+    if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
 
-      // إرجاع الفئات الفرعية
-      res.json(category.subcategories);
+    // إرجاع الفئات الفرعية
+    res.json(category.subcategories);
 
   } catch (err) {
-      console.error("Error:", err);
-      res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات الفرعية' });
+    console.error("Error:", err);
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات الفرعية' });
   }
 });
 
@@ -604,20 +611,6 @@ app.get('/dashboard/getAllPatients', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'حدث خطأ أثناء جلب المرضى.' });
   }
 });
-
-// API لجلب جميع المواعيد
-// app.get('/dashboard/getAllAppointments', authenticateToken, async (req, res) => {
-//   try {
-//     const appointments = await Appointment.find();
-//     if (appointments.length === 0) {
-//       return res.status(404).json({ message: 'لا يوجد مواعيد.' });
-//     }
-//     res.status(200).json(appointments);
-//   } catch (error) {
-//     console.error('خطأ أثناء جلب المواعيد:', error);
-//     res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد.' });
-//   }
-// });
 
 app.get('/dashboard/getAllAppointments', verifyToken, async (req, res) => {
   try {
@@ -920,119 +913,119 @@ app.post('/dashboard/addService', verifyToken, async (req, res) => {
 
 //لجلب جميع الخدمات
 app.get('/dashboard/services', authenticateToken, async (req, res) => {
-    try {
-        const { lang } = req.query; // الحصول على اللغة من الـ query parameters
-        const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
+  try {
+    const { lang } = req.query; // الحصول على اللغة من الـ query parameters
+    const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
 
-        if (services.length === 0) return res.status(404).json({ message: "No services found" });
+    if (services.length === 0) return res.status(404).json({ message: "No services found" });
 
-        // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
-        if (!lang) return res.json(services);
+    // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
+    if (!lang) return res.json(services);
 
-        // تجهيز البيانات حسب اللغة المطلوبة
-        const localizedServices = services.map(service => ({
-            serviceId: service.serviceId,
-            title: service.title[lang] || service.title['en'],
-            description: service.description[lang] || service.description['en'],
-            imageUrl: service.imageUrl,
-            categories: service.categories.map(category => ({
-                categoryId: category.categoryId,
-                title: category.title[lang] || category.title['en'],
-                description: category.description[lang] || category.description['en'],
-                imageUrl: category.imageUrl,
-                subcategories: category.subcategories.map(sub => ({
-                    subcategoryId: sub.subcategoryId,
-                    title: sub.title[lang] || sub.title['en'],
-                    description: sub.description[lang] || sub.description['en'],
-                    imageUrl: sub.imageUrl,
-                    content: sub.content[lang] || sub.content['en']
-                }))
-            }))
-        }));
+    // تجهيز البيانات حسب اللغة المطلوبة
+    const localizedServices = services.map(service => ({
+      serviceId: service.serviceId,
+      title: service.title[lang] || service.title['en'],
+      description: service.description[lang] || service.description['en'],
+      imageUrl: service.imageUrl,
+      categories: service.categories.map(category => ({
+        categoryId: category.categoryId,
+        title: category.title[lang] || category.title['en'],
+        description: category.description[lang] || category.description['en'],
+        imageUrl: category.imageUrl,
+        subcategories: category.subcategories.map(sub => ({
+          subcategoryId: sub.subcategoryId,
+          title: sub.title[lang] || sub.title['en'],
+          description: sub.description[lang] || sub.description['en'],
+          imageUrl: sub.imageUrl,
+          content: sub.content[lang] || sub.content['en']
+        }))
+      }))
+    }));
 
-        res.json(localizedServices);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    res.json(localizedServices);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // API لاسترجاع بيانات الخدمة
 app.get('/dashboard/service/:id', authenticateToken, async (req, res) => {
-    try {
-        const { lang } = req.query;
-        const service = await Service.findOne({ serviceId: req.params.id });
+  try {
+    const { lang } = req.query;
+    const service = await Service.findOne({ serviceId: req.params.id });
 
-        if (!service) return res.status(404).json({ message: "Service not found" });
+    if (!service) return res.status(404).json({ message: "Service not found" });
 
-        if (!lang) return res.json(service);
+    if (!lang) return res.json(service);
 
-        const localizedService = {
-            serviceId: service.serviceId,
-            title: service.title[lang] || service.title['en'],
-            description: service.description[lang] || service.description['en'],
-            imageUrl: service.imageUrl,
-            categories: service.categories.map(category => ({
-                categoryId: category.categoryId,
-                title: category.title[lang] || category.title['en'],
-                description: category.description[lang] || category.description['en'],
-                imageUrl: category.imageUrl,
-                subcategories: category.subcategories.map(sub => ({
-                    subcategoryId: sub.subcategoryId,
-                    title: sub.title[lang] || sub.title['en'],
-                    description: sub.description[lang] || sub.description['en'],
-                    imageUrl: sub.imageUrl,
-                    content: sub.content[lang] || sub.content['en']
-                }))
-            }))
-        };
+    const localizedService = {
+      serviceId: service.serviceId,
+      title: service.title[lang] || service.title['en'],
+      description: service.description[lang] || service.description['en'],
+      imageUrl: service.imageUrl,
+      categories: service.categories.map(category => ({
+        categoryId: category.categoryId,
+        title: category.title[lang] || category.title['en'],
+        description: category.description[lang] || category.description['en'],
+        imageUrl: category.imageUrl,
+        subcategories: category.subcategories.map(sub => ({
+          subcategoryId: sub.subcategoryId,
+          title: sub.title[lang] || sub.title['en'],
+          description: sub.description[lang] || sub.description['en'],
+          imageUrl: sub.imageUrl,
+          content: sub.content[lang] || sub.content['en']
+        }))
+      }))
+    };
 
-        res.json(localizedService);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    res.json(localizedService);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // تحديث حالة الخدمة أو الفئة أو الفئة الفرعية
 app.patch('/dashboard/:type/:id/status', verifyToken, async (req, res) => {
   const { type, id } = req.params;
   const { status } = req.body;
-  
+
   try {
-      let updatedService;
-      if (type === 'service') {
-          updatedService = await Service.findOneAndUpdate(
-              { serviceId: id },
-              { status },
-              { new: true }
-          );
-      } else if (type === 'category') {
-          updatedService = await Service.findOneAndUpdate(
-              { 'categories.categoryId': id },
-              { $set: { 'categories.$.status': status } },
-              { new: true }
-          );
-      } else if (type === 'subcategory') {
-          updatedService = await Service.findOneAndUpdate(
-              { 'categories.subcategories.subcategoryId': id },
-              { $set: { 'categories.$[].subcategories.$[sub].status': status } },
-              { arrayFilters: [{ 'sub.subcategoryId': id }], new: true }
-          );
-      } else {
-          return res.status(400).json({ error: 'نوع غير صحيح' });
-      }
-      res.json(updatedService);
+    let updatedService;
+    if (type === 'service') {
+      updatedService = await Service.findOneAndUpdate(
+        { serviceId: id },
+        { status },
+        { new: true }
+      );
+    } else if (type === 'category') {
+      updatedService = await Service.findOneAndUpdate(
+        { 'categories.categoryId': id },
+        { $set: { 'categories.$.status': status } },
+        { new: true }
+      );
+    } else if (type === 'subcategory') {
+      updatedService = await Service.findOneAndUpdate(
+        { 'categories.subcategories.subcategoryId': id },
+        { $set: { 'categories.$[].subcategories.$[sub].status': status } },
+        { arrayFilters: [{ 'sub.subcategoryId': id }], new: true }
+      );
+    } else {
+      return res.status(400).json({ error: 'نوع غير صحيح' });
+    }
+    res.json(updatedService);
   } catch (err) {
-      res.status(500).json({ error: 'حدث خطأ أثناء تحديث الحالة' });
+    res.status(500).json({ error: 'حدث خطأ أثناء تحديث الحالة' });
   }
 });
 
 // حذف خدمة
 app.delete('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
   try {
-      await Service.findOneAndDelete({ serviceId: req.params.serviceId });
-      res.json({ message: 'تم حذف الخدمة بنجاح' });
+    await Service.findOneAndDelete({ serviceId: req.params.serviceId });
+    res.json({ message: 'تم حذف الخدمة بنجاح' });
   } catch (err) {
-      res.status(500).json({ error: 'حدث خطأ أثناء حذف الخدمة' });
+    res.status(500).json({ error: 'حدث خطأ أثناء حذف الخدمة' });
   }
 });
 
@@ -1044,11 +1037,11 @@ app.delete('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
 // جلب الفئات لخدمة معينة
 app.get('/dashboard/service/:serviceId/categories', verifyToken, async (req, res) => {
   try {
-      const service = await Service.findOne({ serviceId: req.params.serviceId });
-      if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
-      res.json(service.categories);
+    const service = await Service.findOne({ serviceId: req.params.serviceId });
+    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    res.json(service.categories);
   } catch (err) {
-      res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
+    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
   }
 });
 
@@ -1056,7 +1049,7 @@ app.get('/dashboard/service/:serviceId/categories', verifyToken, async (req, res
 app.get('/dashboard/service/:serviceId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
   try {
     console.log("req.params.serviceId:", req.params.serviceId);
-    
+
     // البحث عن الخدمة باستخدام ObjectId
     const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
     console.log("Service Found:", service);
@@ -1081,68 +1074,70 @@ app.get('/dashboard/service/:serviceId/category/:categoryId/subcategories', veri
 // ✅ تحديث بيانات الخدمة
 app.put('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
   try {
-      const { serviceId } = req.params;
-      console.log("req.params", req.params);
+    const { serviceId } = req.params;
+    console.log("req.params", req.params);
 
-      const updatedData = req.body;
+    const updatedData = req.body;
 
-      console.log("updatedData", updatedData);
+    console.log("updatedData", updatedData);
 
-      const service = await Service.findOneAndUpdate(
-          { serviceId },
-          { $set: updatedData },
-          { new: true }
-      );
+    const service = await Service.findOneAndUpdate(
+      { serviceId },
+      { $set: updatedData },
+      { new: true }
+    );
 
-      if (!service) return res.status(404).json({ message: 'Service not found' });
+    if (!service) return res.status(404).json({ message: 'Service not found' });
 
-      res.json(service);
+    res.json(service);
   } catch (error) {
-      res.status(500).json({ message: 'Error updating service', error });
+    res.status(500).json({ message: 'Error updating service', error });
   }
 });
 
 // ✅ تحديث بيانات الفئة داخل خدمة
-app.put('/dashboard/service/:serviceId/category/:categoryId', verifyToken ,async (req, res) => {
+app.put('/dashboard/service/:serviceId/category/:categoryId', verifyToken, async (req, res) => {
   try {
-      const { serviceId, categoryId } = req.params;
-      const updatedData = req.body;
+    const { serviceId, categoryId } = req.params;
+    const updatedData = req.body;
 
-      const service = await Service.findOneAndUpdate(
-          { serviceId, 'categories.categoryId': categoryId },
-          { $set: { 'categories.$': updatedData } },
-          { new: true }
-      );
+    const service = await Service.findOneAndUpdate(
+      { serviceId, 'categories.categoryId': categoryId },
+      { $set: { 'categories.$': updatedData } },
+      { new: true }
+    );
 
-      if (!service) return res.status(404).json({ message: 'Category not found' });
+    if (!service) return res.status(404).json({ message: 'Category not found' });
 
-      res.json(service);
+    res.json(service);
   } catch (error) {
-      res.status(500).json({ message: 'Error updating category', error });
+    res.status(500).json({ message: 'Error updating category', error });
   }
 });
 
 // ✅ تحديث بيانات الفئة الفرعية داخل فئة
-app.put('/dashboard/service/:serviceId/category/:categoryId/subcategory/:subcategoryId',verifyToken, async (req, res) => {
+app.put('/dashboard/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', verifyToken, async (req, res) => {
   try {
-      const { serviceId, categoryId, subcategoryId } = req.params;
-      const updatedData = req.body;
+    const { serviceId, categoryId, subcategoryId } = req.params;
+    const updatedData = req.body;
 
-      const service = await Service.findOneAndUpdate(
-          { serviceId, 'categories.categoryId': categoryId, 'categories.subcategories.subcategoryId': subcategoryId },
-          { $set: { 'categories.$[cat].subcategories.$[sub]': updatedData } },
-          { new: true, arrayFilters: [{ 'cat.categoryId': categoryId }, { 'sub.subcategoryId': subcategoryId }] }
-      );
+    const service = await Service.findOneAndUpdate(
+      { serviceId, 'categories.categoryId': categoryId, 'categories.subcategories.subcategoryId': subcategoryId },
+      { $set: { 'categories.$[cat].subcategories.$[sub]': updatedData } },
+      { new: true, arrayFilters: [{ 'cat.categoryId': categoryId }, { 'sub.subcategoryId': subcategoryId }] }
+    );
 
-      if (!service) return res.status(404).json({ message: 'Subcategory not found' });
+    if (!service) return res.status(404).json({ message: 'Subcategory not found' });
 
-      res.json(service);
+    res.json(service);
   } catch (error) {
-      res.status(500).json({ message: 'Error updating subcategory', error });
+    res.status(500).json({ message: 'Error updating subcategory', error });
   }
 });
 //#endregion
 
+// 📌 استخدام الـ Routes
+app.use("/api", clinicRoutes);
 
 // تشغيل السيرفر
 app.listen(PORT, () => {
