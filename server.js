@@ -1,5 +1,5 @@
 const path = require('path');
-const session = require('express-session'); // لاستخدام الجلسات
+const session = require('express-session'); // For using sessions
 const cors = require('cors');
 const express = require('express');
 const bodyParser = require('body-parser');
@@ -9,7 +9,7 @@ const getClinicSettings = require("./middleware/clinicMiddleware");
 
 
 const authRoutes = require('./routes/auth');
-const passport = require('./utils/passport'); // استيراد ملف passport.js
+const passport = require('./utils/passport'); // Import passport.js file
 const mongoose = require('mongoose');
 require('dotenv').config();
 
@@ -19,26 +19,26 @@ const jwt = require('jsonwebtoken');
 
 const clinicRoutes = require("./routes/clinicRoutes");
 
-// استيراد نموذج المستخدم والمريض والمواعيد
+// Import user, patient, and appointment models
 const User = require('./models/User');
 const Patient = require('./models/Patient');
 const Appointment = require('./models/Appointment');
 const Article = require('./models/Article');
-const Admin = require('./models/Admin'); // استيراد النموذج
-const { verifyToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
-const { authenticateToken } = require('./utils/jwt'); // استيراد التحقق من التوكن
+const Admin = require('./models/Admin'); // Import the model
+const { verifyToken } = require('./utils/jwt'); // Import token verification
+const { authenticateToken } = require('./utils/jwt'); // Import token verification
 const Service = require('./models/Service');
 const Clinic = require('./models/Clinic');
 
 const app = express();
-app.use(cors()); // تفعيل CORS لجميع الطلبات
+app.use(cors()); // Enable CORS for all requests
 
 // app.use(bodyParser.json()); 
 
-// تعيين الحد الأقصى لحجم الطلب إلى 50 ميغابايت (يمكنك تغييره حسب الحاجة)
+// Set the maximum request size to 50MB (you can change it as needed)
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-// تقديم ملفات الترجمة من مجلد 'locales'
+// Serve translation files from the 'locales' folder
 app.use('/locales', express.static(path.join(__dirname, 'locales')));
 const PORT = process.env.PORT || 8080;
 
@@ -47,14 +47,14 @@ mongoose
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((err) => console.error("❌ Error connecting to MongoDB:", err));
 
-// app.use(getClinicSettings);  // استخدام Middleware لجلب إعدادات العيادة
+// app.use(getClinicSettings);  // Use middleware to fetch clinic settings
 
-// ربط routes الخاصة بالتسجيل
+// Link registration routes
 app.use('/api/auth', authRoutes);
 
 
-//لتسجيل المستخدمين عبر جوجل ومايكرسوفت
-// إعداد الجلسات
+// For registering users via Google and Microsoft
+// Configure sessions
 // app.use(session({
 //   secret: process.env.SESSION_SECRET,
 //   resave: false,
@@ -63,17 +63,17 @@ app.use('/api/auth', authRoutes);
 // app.use(passport.initialize());
 // app.use(passport.session());
 
-app.use(express.json()); // لضمان قراءة الـ body
-app.use(express.urlencoded({ extended: true })); // لفهم البيانات بصيغة x-www-form-urlencoded
+app.use(express.json()); // To ensure the body is read
+app.use(express.urlencoded({ extended: true })); // To parse data in x-www-form-urlencoded format
 
-app.use(cookieParser()); // ✅ إضافة `cookie-parser`
+app.use(cookieParser()); // ✅ Add `cookie-parser`
 
-// ✅ استخدم `express-session` قبل `passport.initialize()`
+// ✅ Use `express-session` before `passport.initialize()`
 // app.use(session({
-//     secret: process.env.SESSION_SECRET,  // استبدله بمفتاح سري قوي
-//     resave: false,
-//     saveUninitialized: true,
-//     cookie: { secure: false } // تأكد أن `secure: false` عند التطوير
+//   secret: process.env.SESSION_SECRET,  // Replace with a strong secret key
+//   resave: false,
+//   saveUninitialized: true,
+//   cookie: { secure: false } // Ensure `secure: false` during development
 // }));
 
 
@@ -84,42 +84,40 @@ app.use(session({
 }));
 
 
-
-
-// ✅ تهيئة Passport
+// ✅ Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
 
-// لخدمة الملفات الثابتة (CSS، JavaScript، إلخ)
+// To serve static files (CSS, JavaScript, etc.)
 app.use(express.static("public"));
 
-// إعدادات مسار تسجيل الدخول عبر جوجل
+// Google login route settings
 app.get('/api/auth/google', passport.authenticate('google', {
   scope: ['profile', 'email']
 }));
 
-// إعدادات مسار رد جوجل
+// Google callback route settings
 app.get('/api/auth/google/callback', passport.authenticate('google', {
   failureRedirect: '/login'
 }), (req, res) => {
-  // نجاح التسجيل أو تسجيل الدخول
-  res.redirect('/'); // يمكنك توجيه المستخدم إلى صفحة معينة بعد النجاح
+  // Successful registration or login
+  res.redirect('/'); // You can redirect the user to a specific page after success
 });
 
-// إعدادات مسار تسجيل الدخول عبر مايكروسوفت
+// Microsoft login route settings
 app.get('/api/auth/microsoft', passport.authenticate('microsoft', {
   scope: ['user.read', 'mail.read']
 }));
 
-// إعدادات مسار رد مايكروسوفت
+// Microsoft callback route settings
 app.get('/api/auth/microsoft/callback', passport.authenticate('microsoft', {
   failureRedirect: '/login'
 }), (req, res) => {
-  // نجاح التسجيل أو تسجيل الدخول
-  res.redirect('/profile'); // يمكنك توجيه المستخدم إلى صفحة معينة بعد النجاح
+  // Successful registration or login
+  res.redirect('/profile'); // You can redirect the user to a specific page after success
 });
 
-// صفحة البروفايل
+// Profile page
 app.get('/', (req, res) => {
   if (!req.user) {
     return res.status(401).json({ message: 'User not authenticated' });
@@ -132,66 +130,66 @@ app.get('/', (req, res) => {
   });
 });
 
-
-// API لجلب جميع المستخدمين
+// API to fetch all users
 app.get('/getAllUsers', async (req, res) => {
   try {
     console.log("test1");
     const users = await User.find();
     if (users.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مستخدمون.' });
+      return res.status(404).json({ message: 'No users found.' });
     }
     res.status(200).json(users);
   } catch (error) {
-    console.error('خطأ أثناء جلب المستخدمين:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المستخدمين.' });
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'An error occurred while fetching users.' });
   }
 });
 
-// API لجلب جميع المرضى
+// API to fetch all patients
 app.get('/getAllPatients', async (req, res) => {
   try {
     const patients = await Patient.find();
     if (patients.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مرضى.' });
+      return res.status(404).json({ message: 'No patients found.' });
     }
     res.status(200).json(patients);
   } catch (error) {
-    console.error('خطأ أثناء جلب المرضى:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المرضى.' });
+    console.error('Error fetching patients:', error);
+    res.status(500).json({ error: 'An error occurred while fetching patients.' });
   }
 });
 
-// API لجلب جميع المواعيد
+// API to fetch all appointments
 app.get('/getAllAppointments', async (req, res) => {
   try {
     const appointments = await Appointment.find();
     if (appointments.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مواعيد.' });
+      return res.status(404).json({ message: 'No appointments found.' });
     }
     res.status(200).json(appointments);
   } catch (error) {
-    console.error('خطأ أثناء جلب المواعيد:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد.' });
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'An error occurred while fetching appointments.' });
   }
 });
-// API لجلب المواعيد التي حالتها 'booked'
+
+// API to fetch appointments with status 'booked'
 app.get('/getBookedAppointments', async (req, res) => {
   try {
     const appointments = await Appointment.find({ status: 'booked' });
 
     if (appointments.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مواعيد محجوزة.' });
+      return res.status(404).json({ message: 'No booked appointments found.' });
     }
 
     res.status(200).json(appointments);
   } catch (error) {
-    console.error('خطأ أثناء جلب المواعيد المحجوزة:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المحجوزة.' });
+    console.error('Error fetching booked appointments:', error);
+    res.status(500).json({ error: 'An error occurred while fetching booked appointments.' });
   }
 });
 
-// API لجلب الأوقات المتاحة لتاريخ معين
+// API to fetch available times for a specific date
 app.get('/getAvailableTimes/:date', async (req, res) => {
   const { date } = req.params;
 
@@ -204,44 +202,44 @@ app.get('/getAvailableTimes/:date', async (req, res) => {
 
     res.status(200).json({ availableTimes });
   } catch (error) {
-    console.error('خطأ أثناء جلب الأوقات المتاحة:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب الأوقات المتاحة.' });
+    console.error('Error fetching available times:', error);
+    res.status(500).json({ error: 'An error occurred while fetching available times.' });
   }
 });
 
 app.post('/addYearAppointments', async (req, res) => {
   try {
-    const year = 2025; // السنة المطلوبة
-    const startDate = new Date(`${year}-01-01T00:00:00Z`); // بداية اليوم بتوقيت UTC
-    const endDate = new Date(`${year}-12-31T23:59:59Z`); // نهاية آخر يوم في السنة
+    const year = 2025; // The desired year
+    const startDate = new Date(`${year}-01-01T00:00:00Z`); // Start of the day in UTC
+    const endDate = new Date(`${year}-12-31T23:59:59Z`); // End of the last day of the year
 
-    const appointments = []; // مصفوفة لتخزين المواعيد
+    const appointments = []; // Array to store appointments
 
     for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-      for (let hour = 9; hour < 18; hour++) { // من 9 صباحًا حتى 17:30 مساءً
-        for (let minute of [0, 30]) { // كل نصف ساعة (00 و 30)
+      for (let hour = 9; hour < 18; hour++) { // From 9 AM to 5:30 PM
+        for (let minute of [0, 30]) { // Every half hour (00 and 30)
           const appointmentTime = new Date(date);
-          appointmentTime.setUTCHours(hour, minute, 0, 0); // ضبط الساعة والدقيقة بتوقيت UTC
+          appointmentTime.setUTCHours(hour, minute, 0, 0); // Set the hour and minute in UTC
 
           appointments.push({
-            appointment_id: `${appointmentTime.toISOString().split('T')[0]}-${hour}:${minute === 0 ? '00' : '30'}`, // معرف الموعد
-            date: appointmentTime.toISOString().split('T')[0], // تاريخ الموعد
-            time: appointmentTime.toISOString().split('T')[1].split('.')[0], // وقت الموعد (ساعات:دقائق:ثواني)
-            status: 'available', // حالة الموعد (متاح)
-            patient_id: null, // لا يوجد مريض حالياً
-            doctor_id: 'dr123', // معرف الطبيب الافتراضي
+            appointment_id: `${appointmentTime.toISOString().split('T')[0]}-${hour}:${minute === 0 ? '00' : '30'}`, // Appointment ID
+            date: appointmentTime.toISOString().split('T')[0], // Appointment date
+            time: appointmentTime.toISOString().split('T')[1].split('.')[0], // Appointment time (hours:minutes:seconds)
+            status: 'available', // Appointment status (available)
+            patient_id: null, // No patient currently
+            doctor_id: 'dr123', // Default doctor ID
           });
         }
       }
     }
 
-    // إضافة المواعيد إلى MongoDB دفعة واحدة
+    // Add appointments to MongoDB in bulk
     await Appointment.insertMany(appointments);
 
-    res.status(200).json({ message: 'تمت إضافة مواعيد السنة 2025 بنجاح!' });
+    res.status(200).json({ message: 'Appointments for the year 2025 added successfully!' });
   } catch (error) {
-    console.error('خطأ أثناء إضافة مواعيد السنة:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء إضافة مواعيد السنة' });
+    console.error('Error adding year appointments:', error);
+    res.status(500).json({ error: 'An error occurred while adding year appointments' });
   }
 });
 
@@ -250,7 +248,7 @@ app.post('/addUser', async (req, res) => {
   const { fullName, email, phone, contactMethod, consultationType, additionalInfo } = req.body;
 
   if (!fullName || !email || !phone || !contactMethod || !consultationType) {
-    return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
+    return res.status(400).json({ error: 'Please provide all required fields.' });
   }
 
   try {
@@ -265,30 +263,30 @@ app.post('/addUser', async (req, res) => {
     });
 
     await user.save();
-    res.status(200).json({ message: 'تم إضافة المستخدم بنجاح!', userId: user._id });
+    res.status(200).json({ message: 'User added successfully!', userId: user._id });
   } catch (error) {
-    console.error('خطأ أثناء إضافة المستخدم:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المستخدم' });
+    console.error('Error adding user:', error);
+    res.status(500).json({ error: 'An error occurred while adding the user' });
   }
 });
 
-// API لحجز موعد
+// API to book an appointment
 app.post('/bookAppointment', async (req, res) => {
   const { patient_name, phone_number, email, identity_number, appointment_date, appointment_time, appointment_reason, preferred_doctor, additional_notes, has_insurance, insurance_company, insurance_policy_number, agree_to_terms, reminder_method } = req.body;
 
   if (!patient_name || !phone_number || !email || !identity_number || !appointment_date || !appointment_time || !appointment_reason || !agree_to_terms || !reminder_method) {
-    return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
+    return res.status(400).json({ error: 'Please provide all required fields.' });
   }
 
   try {
     const appointment = await Appointment.findOne({ date: appointment_date, time: appointment_time });
 
     if (!appointment) {
-      return res.status(404).json({ error: 'الموعد غير موجود أو تم حجزه مسبقًا.' });
+      return res.status(404).json({ error: 'Appointment not found or already booked.' });
     }
 
     if (appointment.status === 'booked') {
-      return res.status(400).json({ error: 'الموعد غير متاح لأنه تم حجزه مسبقًا.' });
+      return res.status(400).json({ error: 'Appointment not available as it is already booked.' });
     }
 
     const patient = new Patient({
@@ -299,7 +297,7 @@ app.post('/bookAppointment', async (req, res) => {
       appointment_date,
       appointment_time,
       appointment_reason,
-      preferred_doctor: preferred_doctor || 'غير محدد',
+      preferred_doctor: preferred_doctor || 'Not specified',
       additional_notes: additional_notes || '',
       has_insurance: has_insurance || false,
       insurance_company: has_insurance ? insurance_company : null,
@@ -315,19 +313,19 @@ app.post('/bookAppointment', async (req, res) => {
     appointment.patient_id = patient._id;
     await appointment.save();
 
-    res.status(200).json({ message: 'تم حجز الموعد بنجاح!', appointmentId: appointment._id, patientId: patient._id });
+    res.status(200).json({ message: "Appointment booked successfully for " + appointment_date, appointmentId: appointment._id, patientId: patient._id });
   } catch (error) {
-    console.error('خطأ أثناء حجز الموعد:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء حجز الموعد.' });
+    console.error('Error booking appointment:', error);
+    res.status(500).json({ error: 'An error occurred while booking the appointment.' });
   }
 });
 
-// API لإضافة مقال جديد
+// API to add a new article
 app.post('/addArticle', async (req, res) => {
   const { title, content, images, videos, keywords, sources, author, category, summary, tags, comments_enabled, status } = req.body;
 
   if (!title || !content || !author || !category || !summary) {
-    return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
+    return res.status(400).json({ error: 'Please provide all required fields.' });
   }
 
   try {
@@ -349,42 +347,42 @@ app.post('/addArticle', async (req, res) => {
     });
 
     await article.save();
-    res.status(200).json({ message: 'تم إضافة المقال بنجاح!', articleId: article._id });
+    res.status(200).json({ message: 'Article added successfully!', articleId: article._id });
   } catch (error) {
-    console.error('خطأ أثناء إضافة المقال:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المقال.' });
+    console.error('Error adding article:', error);
+    res.status(500).json({ error: 'An error occurred while adding the article.' });
   }
 });
 
-// API لجلب جميع المقالات
+// API to fetch all articles
 app.get('/getAllArticles', async (req, res) => {
   try {
     const articles = await Article.find();
     if (articles.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مقالات.' });
+      return res.status(404).json({ message: 'No articles found.' });
     }
     res.status(200).json(articles);
   } catch (error) {
-    console.error('خطأ أثناء جلب المقالات:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المقالات.' });
+    console.error('Error fetching articles:', error);
+    res.status(500).json({ error: 'An error occurred while fetching articles.' });
   }
 });
 
 // SERVICES
-// جلب جميع الخدمات
+// Fetch all services
 app.get('/services', async (req, res) => {
   try {
-    //const { lang } = req.query; // الحصول على اللغة من الـ query parameters
-    const { lang } = "en"; // الحصول على اللغة من الـ query parameters
+    //const { lang } = req.query; // Get the language from query parameters
+    const { lang } = "en"; // Get the language from query parameters
 
-    const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
+    const services = await Service.find(); // Fetch all services from the database
 
     if (services.length === 0) return res.status(404).json({ message: "No services found" });
 
-    // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
+    // If no language is specified, send all data as is
     if (!lang) return res.json(services);
 
-    // تجهيز البيانات حسب اللغة المطلوبة
+    // Prepare data according to the specified language
     const localizedServices = services.map(service => ({
       serviceId: service.serviceId,
       title: service.title[lang] || service.title['en'],
@@ -411,7 +409,7 @@ app.get('/services', async (req, res) => {
   }
 });
 
-// API لاسترجاع بيانات الخدمة
+// API to retrieve service data
 app.get('/service/:id', async (req, res) => {
   try {
     const { lang } = req.query;
@@ -447,41 +445,41 @@ app.get('/service/:id', async (req, res) => {
   }
 });
 
-// جلب الفئات لخدمة معينة
+// Fetch categories for a specific service
 app.get('/service/:serviceId/categories', async (req, res) => {
   try {
     console.log("req.params.serviceId", req.params.serviceId);
     const service = await Service.findOne({ serviceId: req.params.serviceId });
-    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    if (!service) return res.status(404).json({ error: 'Service not found' });
     res.json(service.categories);
   } catch (err) {
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
+    res.status(500).json({ error: 'An error occurred while fetching categories' });
   }
 });
 
-// جلب الفئات الفرعية لفئة معينة
+// Fetch subcategories for a specific category
 app.get('/service/:serviceId/category/:categoryId/subcategories', async (req, res) => {
   try {
     console.log("req.params.serviceId:", req.params.serviceId);
 
-    // البحث عن الخدمة باستخدام ObjectId
+    // Find the service using ObjectId
     const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
     console.log("Service Found:", service);
 
-    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    if (!service) return res.status(404).json({ error: 'Service not found' });
 
-    // البحث عن الفئة باستخدام ObjectId
+    // Find the category using ObjectId
     const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
     console.log("Category Found:", category);
 
-    if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+    if (!category) return res.status(404).json({ error: 'Category not found' });
 
-    // إرجاع الفئات الفرعية
+    // Return subcategories
     res.json(category.subcategories);
 
   } catch (err) {
     console.error("Error:", err);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات الفرعية' });
+    res.status(500).json({ error: 'An error occurred while fetching subcategories' });
   }
 });
 
@@ -489,47 +487,47 @@ app.get('/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', a
   try {
     const { serviceId, categoryId, subcategoryId } = req.params;
 
-    // البحث عن الخدمة باستخدام serviceId
+    // Find the service using serviceId
     const service = await Service.findOne({ serviceId });
-    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    if (!service) return res.status(404).json({ error: 'Service not found' });
 
-    // البحث عن الفئة باستخدام categoryId
+    // Find the category using categoryId
     const category = service.categories.find(cat => cat.categoryId.toString() === categoryId);
-    if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+    if (!category) return res.status(404).json({ error: 'Category not found' });
 
-    // البحث عن الفئة الفرعية باستخدام subcategoryId
+    // Find the subcategory using subcategoryId
     const subcategory = category.subcategories.find(sub => sub.subcategoryId.toString() === subcategoryId);
-    if (!subcategory) return res.status(404).json({ error: 'الفئة الفرعية غير موجودة' });
+    if (!subcategory) return res.status(404).json({ error: 'Subcategory not found' });
 
-    // إرجاع بيانات الفئة الفرعية
+    // Return subcategory data
     res.json(subcategory);
   } catch (err) {
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئة الفرعية' });
+    res.status(500).json({ error: 'An error occurred while fetching the subcategory' });
   }
 });
 
 
 //#region DASHBOARD
-// إضافة مسؤول جديد إلى قاعدة البيانات
+// Add a new admin to the database
 app.post('/addAdmin', async (req, res) => {
   const { fullName, email, password, role } = req.body;
 
-  // التحقق من القيم المدخلة
+  // Validate input values
   if (!fullName || !email || !password || !role) {
-    return res.status(400).json({ error: 'يرجى تقديم جميع الحقول المطلوبة.' });
+    return res.status(400).json({ error: 'Please provide all required fields.' });
   }
 
   try {
-    // تحقق ما إذا كان البريد الإلكتروني مستخدم مسبقًا
+    // Check if the email is already in use
     const existingAdmin = await Admin.findOne({ email });
     if (existingAdmin) {
-      return res.status(409).json({ error: 'البريد الإلكتروني مستخدم بالفعل.' });
+      return res.status(409).json({ error: 'Email is already in use.' });
     }
 
-    // تشفير كلمة المرور
+    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // إنشاء سجل جديد في قاعدة البيانات
+    // Create a new record in the database
     const newAdmin = new Admin({
       fullName,
       email,
@@ -538,77 +536,77 @@ app.post('/addAdmin', async (req, res) => {
     });
 
     await newAdmin.save();
-    res.status(201).json({ message: 'تمت إضافة المسؤول بنجاح.' });
+    res.status(201).json({ message: 'Admin added successfully.' });
   } catch (error) {
-    console.error('خطأ أثناء إضافة المسؤول:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المسؤول.' });
+    console.error('Error adding admin:', error);
+    res.status(500).json({ error: 'An error occurred while adding the admin.' });
   }
 });
 
-// // API لتسجيل الدخول
+// // API for admin login
 app.post('/adminLogin', async (req, res) => {
   const { email, password } = req.body;
 
-  // التحقق من المدخلات
+  // Validate input
   if (!email || !password) {
-    return res.status(400).json({ error: 'يرجى تقديم البريد الإلكتروني وكلمة المرور.' });
+    return res.status(400).json({ error: 'Please provide email and password.' });
   }
 
   try {
-    // البحث عن المسؤول في قاعدة البيانات
+    // Find the admin in the database
     const admin = await Admin.findOne({ email });
 
     if (!admin) {
-      return res.status(404).json({ error: 'المسؤول غير موجود.' });
+      return res.status(404).json({ error: 'Admin not found.' });
     }
 
-    // التحقق من كلمة المرور
+    // Verify the password
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
-      return res.status(401).json({ error: 'كلمة المرور غير صحيحة.' });
+      return res.status(401).json({ error: 'Incorrect password.' });
     }
 
-    // إنشاء توكن
+    // Create a token
     const token = jwt.sign({ id: admin._id, role: admin.role }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
 
-    res.status(200).json({ message: 'تم تسجيل الدخول بنجاح.', token, adminInfo: admin });
+    res.status(200).json({ message: 'Login successful.', token, adminInfo: admin });
   } catch (error) {
-    console.error('خطأ أثناء تسجيل الدخول:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء تسجيل الدخول.' });
+    console.error('Error during login:', error);
+    res.status(500).json({ error: 'An error occurred during login.' });
   }
 });
 
 // ---------------------------
-// APIs المحمية للـ Dashboard
+// Protected APIs for the Dashboard
 // ---------------------------
 
-// API لجلب جميع المستخدمين
+// API to fetch all users
 app.get('/dashboard/getAllUsers', authenticateToken, async (req, res) => {
   try {
     const users = await User.find();
     if (users.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مستخدمون.' });
+      return res.status(404).json({ message: 'No users found.' });
     }
     res.status(200).json(users);
   } catch (error) {
-    console.error('خطأ أثناء جلب المستخدمين:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المستخدمين.' });
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'An error occurred while fetching users.' });
   }
 });
 
-// API لجلب جميع المرضى
+// API to fetch all patients
 app.get('/dashboard/getAllPatients', authenticateToken, async (req, res) => {
   try {
     const patients = await Patient.find();
     if (patients.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مرضى.' });
+      return res.status(404).json({ message: 'No patients found.' });
     }
     res.status(200).json(patients);
   } catch (error) {
-    console.error('خطأ أثناء جلب المرضى:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المرضى.' });
+    console.error('Error fetching patients:', error);
+    res.status(500).json({ error: 'An error occurred while fetching patients.' });
   }
 });
 
@@ -628,54 +626,54 @@ app.get('/dashboard/getAllAppointments', verifyToken, async (req, res) => {
   }
 });
 
-// API لجلب المواعيد التي حالتها 'booked'
+// API to fetch appointments with status 'booked'
 app.get('/dashboard/getBookedAppointments', authenticateToken, async (req, res) => {
   try {
     const appointments = await Appointment.find({ status: 'booked' });
     if (appointments.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مواعيد محجوزة.' });
+      return res.status(404).json({ message: 'No booked appointments found.' });
     }
     res.status(200).json(appointments);
   } catch (error) {
-    console.error('خطأ أثناء جلب المواعيد المحجوزة:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المحجوزة.' });
+    console.error('Error fetching booked appointments:', error);
+    res.status(500).json({ error: 'An error occurred while fetching booked appointments.' });
   }
 });
 
-// API لجلب المواعيد التي حالتها 'booked'
+// API to fetch appointments with status 'locked'
 app.get('/dashboard/getLockedAppointments', authenticateToken, async (req, res) => {
   try {
     const appointments = await Appointment.find({ status: 'locked' });
     if (appointments.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مواعيد مقفلة.' });
+      return res.status(404).json({ message: 'No locked appointments found.' });
     }
     res.status(200).json(appointments);
   } catch (error) {
-    console.error('خطأ أثناء جلب المواعيد المقفلة:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المقفلة.' });
+    console.error('Error fetching locked appointments:', error);
+    res.status(500).json({ error: 'An error occurred while fetching locked appointments.' });
   }
 });
 
-// API لجلب المواعيد التي حالتها 'booked'
+// API to fetch appointments with status 'available'
 app.get('/dashboard/getAvailableAppointments', authenticateToken, async (req, res) => {
   try {
     const appointments = await Appointment.find({ status: 'available' });
     if (appointments.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مواعيد متاحة.' });
+      return res.status(404).json({ message: 'No available appointments found.' });
     }
     res.status(200).json(appointments);
   } catch (error) {
-    console.error('خطأ أثناء جلب المواعيد المتاحة:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المواعيد المتاحة.' });
+    console.error('Error fetching available appointments:', error);
+    res.status(500).json({ error: 'An error occurred while fetching available appointments.' });
   }
 });
 
-// API لإضافة مقال جديد
+// API to add a new article
 app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
   const { title, content, images, videos, keywords, sources, author, category, summary, tags, comments_enabled, status } = req.body;
 
   if (!title || !content || !author || !category || !summary) {
-    return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
+    return res.status(400).json({ error: 'Please provide all required fields.' });
   }
 
   try {
@@ -697,59 +695,59 @@ app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
     });
 
     await article.save();
-    res.status(200).json({ message: 'تم إضافة المقال بنجاح!', articleId: article._id });
+    res.status(200).json({ message: 'Article added successfully!', articleId: article._id });
   } catch (error) {
-    console.error('خطأ أثناء إضافة المقال:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المقال.' });
+    console.error('Error adding article:', error);
+    res.status(500).json({ error: 'An error occurred while adding the article.' });
   }
 });
 
-// API لجلب جميع المقالات
+// API to fetch all articles
 app.get('/dashboard/getAllArticles', authenticateToken, async (req, res) => {
   try {
     const articles = await Article.find();
     if (articles.length === 0) {
-      return res.status(404).json({ message: 'لا يوجد مقالات.' });
+      return res.status(404).json({ message: 'No articles found.' });
     }
     res.status(200).json(articles);
   } catch (error) {
-    console.error('خطأ أثناء جلب المقالات:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب المقالات.' });
+    console.error('Error fetching articles:', error);
+    res.status(500).json({ error: 'An error occurred while fetching articles.' });
   }
 });
 
 app.get('/dashboard/getArticle/:id', async (req, res) => {
   try {
-    const articleId = req.params.id; // الحصول على ID من الرابط
-    const article = await Article.findById(articleId); // البحث عن المقال في قاعدة البيانات
+    const articleId = req.params.id; // Get the ID from the URL
+    const article = await Article.findById(articleId); // Find the article in the database
     if (!article) {
       return res.status(404).json({ error: 'Article not found' });
     }
-    res.status(200).json(article); // إرسال المقال كاستجابة
+    res.status(200).json(article); // Send the article as a response
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'An error occurred while fetching the article' });
   }
 });
 
-// تحديث مقال بناءً على ID
+// Update an article based on ID
 app.put('/dashboard/updateArticle/:id', async (req, res) => {
   try {
-    console.log(req.body)
+    console.log(req.body);
     const articleId = req.params.id;
     const updatedData = req.body;
 
-    // التأكد من أن المقال موجود
+    // Ensure the article exists
     const article = await Article.findById(articleId);
     if (!article) {
       return res.status(404).json({ message: 'Article not found' });
     }
 
-    // تحديث بيانات المقال في قاعدة البيانات
+    // Update the article data in the database
     const updatedArticle = await Article.findByIdAndUpdate(
       articleId,
       updatedData,
-      { new: true } // إرجاع المقال بعد التحديث
+      { new: true } // Return the article after updating
     );
 
     res.json({ message: 'Article updated successfully', article: updatedArticle });
@@ -759,7 +757,7 @@ app.put('/dashboard/updateArticle/:id', async (req, res) => {
   }
 });
 
-// تعديل حالة المقال (Published / Draft)
+// Update article status (Published / Draft)
 app.put('/dashboard/updateArticleStatus/:id', async (req, res) => {
   try {
     const { status } = req.body;
@@ -794,12 +792,12 @@ app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
       status
     } = req.body;
 
-    // تحقق من الحقول المطلوبة
+    // Validate required fields
     if (!title || !content || !author || !category || !summary) {
-      return res.status(400).json({ error: 'الرجاء توفير جميع الحقول المطلوبة.' });
+      return res.status(400).json({ error: 'Please provide all required fields.' });
     }
 
-    // إنشاء المقال الجديد
+    // Create the new article
     const article = new Article({
       title,
       content,
@@ -817,18 +815,18 @@ app.post('/dashboard/addArticle', authenticateToken, async (req, res) => {
       updated_at: new Date(),
     });
 
-    // حفظ المقال في قاعدة البيانات
+    // Save the article in the database
     await article.save();
 
-    res.status(201).json({ message: 'تم إضافة المقال بنجاح!', articleId: article._id });
+    res.status(201).json({ message: 'Article added successfully!', articleId: article._id });
 
   } catch (error) {
-    console.error('خطأ أثناء إضافة المقال:', error);
-    res.status(500).json({ error: 'حدث خطأ أثناء إضافة المقال.' });
+    console.error('Error adding article:', error);
+    res.status(500).json({ error: 'An error occurred while adding the article.' });
   }
 });
 
-// ✅ API لحذف المقال
+// ✅ API to delete the article
 app.delete('/dashboard/deleteArticle/:id', verifyToken, async (req, res) => {
   try {
     const articleId = req.params.id;
@@ -849,12 +847,12 @@ app.put('/dashboard/updateAppointment/:id', authenticateToken, async (req, res) 
     const { id } = req.params;
     const { status } = req.body;
 
-    // التحقق من الحالة الجديدة
+    // Validate the new status
     if (!["available", "booked", "locked"].includes(status)) {
       return res.status(400).json({ message: "Invalid status value" });
     }
 
-    // البحث عن الموعد وتحديث حالته
+    // Find the appointment and update its status
     const appointment = await Appointment.findByIdAndUpdate(id, { status }, { new: true });
 
     if (!appointment) {
@@ -869,19 +867,19 @@ app.put('/dashboard/updateAppointment/:id', authenticateToken, async (req, res) 
 });
 
 //Services
-// لإضافة خدمة جديدة
+// To add a new service
 app.post('/dashboard/addService', verifyToken, async (req, res) => {
   try {
-    console.log("Received Data:", req.body); // لفحص البيانات القادمة من العميل
+    console.log("Received Data:", req.body); // To inspect the data coming from the client
 
     const { title, description, imageUrl, categories } = req.body;
 
-    // التحقق من صحة البيانات الأساسية
+    // Validate the basic data
     if (!title || !description || !imageUrl || !categories || !Array.isArray(categories) || categories.length === 0) {
       return res.status(400).json({ message: "Missing required fields or invalid categories" });
     }
 
-    // إنشاء كائن الخدمة الجديد بدون `serviceId` (MongoDB سيولده تلقائيًا)
+    // Create the new service object without `serviceId` (MongoDB will generate it automatically)
     const newService = new Service({
       title,
       description,
@@ -899,10 +897,10 @@ app.post('/dashboard/addService', verifyToken, async (req, res) => {
       }))
     });
 
-    // حفظ الخدمة في قاعدة البيانات
+    // Save the service in the database
     await newService.save();
 
-    // إرجاع الاستجابة بنجاح
+    // Return the response successfully
     res.status(201).json({ message: 'Service added successfully', service: newService });
 
   } catch (err) {
@@ -911,18 +909,18 @@ app.post('/dashboard/addService', verifyToken, async (req, res) => {
   }
 });
 
-//لجلب جميع الخدمات
+// To fetch all services
 app.get('/dashboard/services', authenticateToken, async (req, res) => {
   try {
-    const { lang } = req.query; // الحصول على اللغة من الـ query parameters
-    const services = await Service.find(); // جلب جميع الخدمات من قاعدة البيانات
+    const { lang } = req.query; // Get the language from query parameters
+    const services = await Service.find(); // Fetch all services from the database
 
     if (services.length === 0) return res.status(404).json({ message: "No services found" });
 
-    // إذا لم يتم تحديد اللغة، أرسل جميع البيانات كما هي
+    // If no language is specified, send all data as is
     if (!lang) return res.json(services);
 
-    // تجهيز البيانات حسب اللغة المطلوبة
+    // Prepare data according to the specified language
     const localizedServices = services.map(service => ({
       serviceId: service.serviceId,
       title: service.title[lang] || service.title['en'],
@@ -949,7 +947,7 @@ app.get('/dashboard/services', authenticateToken, async (req, res) => {
   }
 });
 
-// API لاسترجاع بيانات الخدمة
+// API to retrieve service data
 app.get('/dashboard/service/:id', authenticateToken, async (req, res) => {
   try {
     const { lang } = req.query;
@@ -985,7 +983,7 @@ app.get('/dashboard/service/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// تحديث حالة الخدمة أو الفئة أو الفئة الفرعية
+// Update the status of the service, category, or subcategory
 app.patch('/dashboard/:type/:id/status', verifyToken, async (req, res) => {
   const { type, id } = req.params;
   const { status } = req.body;
@@ -1011,67 +1009,67 @@ app.patch('/dashboard/:type/:id/status', verifyToken, async (req, res) => {
         { arrayFilters: [{ 'sub.subcategoryId': id }], new: true }
       );
     } else {
-      return res.status(400).json({ error: 'نوع غير صحيح' });
+      return res.status(400).json({ error: 'Invalid type' });
     }
     res.json(updatedService);
   } catch (err) {
-    res.status(500).json({ error: 'حدث خطأ أثناء تحديث الحالة' });
+    res.status(500).json({ error: 'An error occurred while updating the status' });
   }
 });
 
-// حذف خدمة
+// Delete a service
 app.delete('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
   try {
     await Service.findOneAndDelete({ serviceId: req.params.serviceId });
-    res.json({ message: 'تم حذف الخدمة بنجاح' });
+    res.json({ message: 'Service deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: 'حدث خطأ أثناء حذف الخدمة' });
+    res.status(500).json({ error: 'An error occurred while deleting the service' });
   }
 });
 
-// حذف فئة لخدمة معينة
+// Delete a category for a specific service
 // to do
-//حذف فئة فرعية داخل فئة
+// Delete a subcategory within a category
 // to do
 
-// جلب الفئات لخدمة معينة
+// Fetch categories for a specific service
 app.get('/dashboard/service/:serviceId/categories', verifyToken, async (req, res) => {
   try {
     const service = await Service.findOne({ serviceId: req.params.serviceId });
-    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    if (!service) return res.status(404).json({ error: 'Service not found' });
     res.json(service.categories);
   } catch (err) {
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات' });
+    res.status(500).json({ error: 'An error occurred while fetching categories' });
   }
 });
 
-// جلب الفئات الفرعية لفئة معينة
+// Fetch subcategories for a specific category
 app.get('/dashboard/service/:serviceId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
   try {
     console.log("req.params.serviceId:", req.params.serviceId);
 
-    // البحث عن الخدمة باستخدام ObjectId
+    // Find the service using ObjectId
     const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
     console.log("Service Found:", service);
 
-    if (!service) return res.status(404).json({ error: 'الخدمة غير موجودة' });
+    if (!service) return res.status(404).json({ error: 'Service not found' });
 
-    // البحث عن الفئة باستخدام ObjectId
+    // Find the category using ObjectId
     const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
     console.log("Category Found:", category);
 
-    if (!category) return res.status(404).json({ error: 'الفئة غير موجودة' });
+    if (!category) return res.status(404).json({ error: 'Category not found' });
 
-    // إرجاع الفئات الفرعية
+    // Return subcategories
     res.json(category.subcategories);
 
   } catch (err) {
     console.error("Error:", err);
-    res.status(500).json({ error: 'حدث خطأ أثناء جلب الفئات الفرعية' });
+    res.status(500).json({ error: 'An error occurred while fetching subcategories' });
   }
 });
 
-// ✅ تحديث بيانات الخدمة
+// ✅ Update service data
 app.put('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
   try {
     const { serviceId } = req.params;
@@ -1095,7 +1093,7 @@ app.put('/dashboard/service/:serviceId', verifyToken, async (req, res) => {
   }
 });
 
-// ✅ تحديث بيانات الفئة داخل خدمة
+// ✅ Update category data within a service
 app.put('/dashboard/service/:serviceId/category/:categoryId', verifyToken, async (req, res) => {
   try {
     const { serviceId, categoryId } = req.params;
@@ -1115,7 +1113,7 @@ app.put('/dashboard/service/:serviceId/category/:categoryId', verifyToken, async
   }
 });
 
-// ✅ تحديث بيانات الفئة الفرعية داخل فئة
+// ✅ Update subcategory data within a category
 app.put('/dashboard/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', verifyToken, async (req, res) => {
   try {
     const { serviceId, categoryId, subcategoryId } = req.params;
@@ -1136,11 +1134,16 @@ app.put('/dashboard/service/:serviceId/category/:categoryId/subcategory/:subcate
 });
 //#endregion
 
-// 📌 استخدام الـ Routes
+
+
+
+
+
+
+// 📌 Use the routes
 app.use("/api", clinicRoutes);
 
-// تشغيل السيرفر
+// Start the server
 app.listen(PORT, () => {
-  console.log(`السيرفر يعمل على: http://localhost:${PORT}`);
-
+  console.log(`Server is running at: http://localhost:${PORT}`);
 });

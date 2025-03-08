@@ -1,17 +1,17 @@
 const express = require("express");
 const Clinic = require("../models/Clinic");
 const router = express.Router();
-const redis = require("../config/redis"); // استيراد Redis client
+const redis = require("../config/redis"); // Import Redis client
 
-const CACHE_EXPIRY = 3600; // مدة التخزين المؤقت (ساعة)
+const CACHE_EXPIRY = 3600; // Cache expiry duration (1 hour)
 
-// 🟢 **إضافة عيادة جديدة**
+// 🟢 **Add a new clinic**
 router.post("/clinics", async (req, res) => {
     try {
         const clinic = new Clinic(req.body);
         await clinic.save();
 
-        // تخزين بيانات العيادة في Redis بعد الإضافة
+        // Store clinic data in Redis after adding
         await redis.setEx(`clinic:${clinic.domain}`, CACHE_EXPIRY, JSON.stringify(clinic));
 
         res.status(201).json({ message: "✅ Clinic added successfully!", clinic });
@@ -20,7 +20,7 @@ router.post("/clinics", async (req, res) => {
     }
 });
 
-// 🟢 **جلب جميع العيادات**
+// 🟢 **Fetch all clinics**
 router.get("/clinics", async (req, res) => {
     try {
         const cachedClinics = await redis.get("clinics");
@@ -29,14 +29,14 @@ router.get("/clinics", async (req, res) => {
         }
 
         const clinics = await Clinic.find();
-        await redis.setEx("clinics", CACHE_EXPIRY, JSON.stringify(clinics)); // تخزين النتيجة في Redis
+        await redis.setEx("clinics", CACHE_EXPIRY, JSON.stringify(clinics)); // Store result in Redis
         res.json(clinics);
     } catch (err) {
         res.status(500).json({ error: "❌ Failed to retrieve clinics", details: err.message });
     }
 });
 
-// 🟢 **جلب بيانات عيادة حسب الدومين**
+// 🟢 **Fetch clinic data by domain**
 router.get("/clinics/:domain", async (req, res) => {
     const { domain } = req.params;
 
@@ -49,14 +49,14 @@ router.get("/clinics/:domain", async (req, res) => {
         const clinic = await Clinic.findOne({ domain });
         if (!clinic) return res.status(404).json({ error: "❌ Clinic not found" });
 
-        await redis.setEx(`clinic:${domain}`, CACHE_EXPIRY, JSON.stringify(clinic)); // تخزين في الكاش
+        await redis.setEx(`clinic:${domain}`, CACHE_EXPIRY, JSON.stringify(clinic)); // Store in cache
         res.json(clinic);
     } catch (err) {
         res.status(500).json({ error: "❌ Failed to retrieve clinic", details: err.message });
     }
 });
 
-// 🟢 **تحديث بيانات العيادة**
+// 🟢 **Update clinic data**
 router.put("/clinics/:domain", async (req, res) => {
     const { domain } = req.params;
     const { languageList } = req.body;
@@ -66,20 +66,20 @@ router.put("/clinics/:domain", async (req, res) => {
         if (!clinic) return res.status(404).json({ error: "❌ Clinic not found" });
 
         if (languageList && Array.isArray(languageList)) {
-            // التحقق من أن هناك لغة واحدة فقط بعلامة default: true
+            // Ensure there is at least one language set as default
             const hasDefaultLang = languageList.some(lang => lang.default);
             if (!hasDefaultLang) {
                 return res.status(400).json({ error: "❌ At least one language must be set as default." });
             }
 
-            // تحديث قائمة اللغات
+            // Update language list
             clinic.languageList = languageList;
         }
 
-        // تحديث العيادة في قاعدة البيانات
+        // Update clinic in the database
         await clinic.save();
 
-        // تحديث الكاش بعد التعديل
+        // Update cache after modification
         await redis.setEx(`clinic:${domain}`, CACHE_EXPIRY, JSON.stringify(clinic));
 
         res.json({ message: "✅ Clinic updated successfully!", clinic });
@@ -87,7 +87,8 @@ router.put("/clinics/:domain", async (req, res) => {
         res.status(400).json({ error: "❌ Failed to update clinic", details: err.message });
     }
 });
-// 🟢 **حذف عيادة**
+
+// 🟢 **Delete a clinic**
 router.delete("/clinics/:domain", async (req, res) => {
     const { domain } = req.params;
 
@@ -96,7 +97,7 @@ router.delete("/clinics/:domain", async (req, res) => {
 
         if (!deletedClinic) return res.status(404).json({ error: "❌ Clinic not found" });
 
-        // حذف العيادة من الكاش
+        // Remove clinic from cache
         await redis.del(`clinic:${domain}`);
 
         res.json({ message: `✅ Clinic ${domain} deleted successfully!` });

@@ -2,22 +2,22 @@ const Clinic = require("../models/Clinic");
 const redisClient = require("../config/redis");
 
 const getClinicSettings = async (req, res, next) => {
-    const domain = req.hostname;  // جلب دومين العيادة من الـ Request
+    const domain = req.hostname;  // Get the clinic domain from the request
 
     try {
-        // 🔍 تحقق إذا كانت البيانات مخزنة في Redis
+        // Check if the data is stored in Redis
         const cachedClinic = await redisClient.get(domain);
         if (cachedClinic) {
             req.clinic = JSON.parse(cachedClinic);
             return next();
         }
 
-        // 🔍 جلب الإعدادات من قاعدة البيانات
+        // Fetch settings from the database
         const clinic = await Clinic.findOne({ domain });
         if (!clinic) return res.status(404).json({ message: "Clinic not found" });
 
-        // 🏎️ تخزين البيانات في Redis لتحسين الأداء
-        await redisClient.set(domain, JSON.stringify(clinic), { EX: 3600 }); // حفظ لمدة ساعة
+        // Store the data in Redis to improve performance
+        await redisClient.set(domain, JSON.stringify(clinic), { EX: 3600 }); // Save for one hour
 
         req.clinic = clinic;
         next();

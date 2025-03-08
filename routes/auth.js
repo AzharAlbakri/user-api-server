@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
-// POST endpoint لتسجيل حساب جديد
+// POST endpoint for registering a new account
 router.post('/signup', async (req, res) => {
     console.log("123");
     const { fullName, email, password, registrationType } = req.body;
@@ -64,45 +64,45 @@ router.post('/signup', async (req, res) => {
 });
 
 
-// POST endpoint لتسجيل الدخول
+// POST endpoint for logging in
 router.post('/login', async (req, res) => {
     console.log("11111111");
     const { email, password } = req.body;
     console.log("*****", req.body);
 
-    // تحقق من وجود البيانات المطلوبة
+    // Check for required data
     if (!email || !password) {
         return res.status(400).json({ message: 'Email and password are required' });
     }
 
     try {
-        // البحث عن حساب المستخدم باستخدام البريد الإلكتروني
+       // Find user account by email
         const existingAccount = await Account.findOne({ email });
         if (!existingAccount) {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        // التحقق من كلمة المرور
+        // Verify password
         const isPasswordCorrect = await bcrypt.compare(password, existingAccount.password);
         if (!isPasswordCorrect) {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        // توليد توكن JWT للمستخدم
+        // Generate JWT token for the user
         const token = jwt.sign(
             { userId: existingAccount._id, fullName: existingAccount.fullName, email: existingAccount.email },
             process.env.JWT_SECRET,
-            { expiresIn: '1h' }  // تنتهي صلاحية التوكن بعد ساعة
+            { expiresIn: '1h' }  // Token expires after one hour
         );
 
-        // إرجاع الاستجابة مع بيانات المستخدم والتوكن
+        // Return response with user data and token
         res.status(200).json({
             message: 'Login successful',
             user: {
                 fullName: existingAccount.fullName,
                 email: existingAccount.email,
             },
-            token: token,  // إرسال التوكن مع الاستجابة
+            token: token,  // Send the token with the response
         });
     } catch (error) {
         console.error('Error during login:', error);
@@ -112,7 +112,7 @@ router.post('/login', async (req, res) => {
 
 
 
-// تسجيل الدخول عبر جوجل
+// Google login
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 
@@ -127,19 +127,19 @@ router.get('/google/callback', passport.authenticate('google', { failureRedirect
 
 
 
-// رد على جوجل بعد تسجيل الدخول
+// Respond to Google after login
 // router.get('/google/callback', passport.authenticate('google', { failureRedirect: '/login' }), (req, res) => {
-//     // يمكنك هنا عمل عملية تخزين للمستخدم في قاعدة البيانات
-//     res.redirect('/dashboard'); // توجيه المستخدم إلى الصفحة الرئيسية
+//     // You can perform user storage in the database here
+//     res.redirect('/dashboard'); // Redirect the user to the main page
 // });
 
-// تسجيل الدخول عبر مايكروسوفت
+// Microsoft login
 router.get('/microsoft', passport.authenticate('microsoft', { scope: ['user.read'] }));
 
-// رد على مايكروسوفت بعد تسجيل الدخول
+// Respond to Microsoft after login
 router.get('/microsoft/callback', passport.authenticate('microsoft', { failureRedirect: '/login' }), (req, res) => {
-    // يمكنك هنا عمل عملية تخزين للمستخدم في قاعدة البيانات
-    res.redirect('/dashboard'); // توجيه المستخدم إلى الصفحة الرئيسية
+    // You can perform user storage in the database here
+    res.redirect('/dashboard'); // Redirect the user to the main page
 });
 
 

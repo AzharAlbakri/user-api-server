@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
 
 const ClinicSchema = new mongoose.Schema({
-    domain: { type: String, unique: true, required: true },  // دومين العيادة
-    name: { type: String, required: true },  // اسم العيادة
-    logo: { type: String, default: "/default-logo.png" }, // شعار العيادة
-    icon: { type: String, default: "/default-icon.png" }, // أيقونة العيادة
+    domain: { type: String, unique: true, required: true },  // Clinic domain
+    name: { type: String, required: true },  // Clinic name
+    logo: { type: String, default: "/default-logo.png" }, // Clinic logo
+    icon: { type: String, default: "/default-icon.png" }, // Clinic icon
 
     theme: {
         primaryColor: { type: String, default: "#FF5733" },
@@ -70,9 +70,9 @@ const ClinicSchema = new mongoose.Schema({
     languageList: {
         type: [
             {
-                code: { type: String, required: true }, // رمز اللغة
-                name: { type: String, required: true }, // اسم اللغة
-                default: { type: Boolean, default: false } // هل هي اللغة الافتراضية؟
+                code: { type: String, required: true }, // Language code
+                name: { type: String, required: true }, // Language name
+                default: { type: Boolean, default: false } // Is it the default language?
             }
         ],
         default: [

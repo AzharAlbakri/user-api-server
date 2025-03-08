@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
-// **مخطط النصوص المترجمة**
+// **Translated texts schema**
 const localizedStringSchema = new mongoose.Schema({
     ar: { type: String, required: true },
     en: { type: String, required: true },
     es: { type: String, required: true }
 }, { _id: false });
 
-// **مخطط الفئة الفرعية**
+// **Subcategory schema**
 const subCategorySchema = new mongoose.Schema({
     subcategoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // توليد تلقائي
     title: localizedStringSchema,
@@ -17,9 +17,9 @@ const subCategorySchema = new mongoose.Schema({
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { _id: false });
 
-// **مخطط الفئة الرئيسية**
+// **Main category schema**
 const categorySchema = new mongoose.Schema({
-    categoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // توليد تلقائي
+    categoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     description: localizedStringSchema,
     imageUrl: { type: String, required: true },
@@ -27,9 +27,9 @@ const categorySchema = new mongoose.Schema({
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { _id: false });
 
-// **مخطط الخدمة**
+// **Service schema**
 const serviceSchema = new mongoose.Schema({
-    serviceId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // توليد تلقائي
+    serviceId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     description: localizedStringSchema,
     imageUrl: { type: String, required: true },

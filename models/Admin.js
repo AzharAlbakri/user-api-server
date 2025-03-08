@@ -16,7 +16,7 @@ const adminSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    default: 'admin', // يمكن تغييره إذا كنت تريد أدوار متعددة
+    default: 'admin', // Can be changed if you want multiple roles
   },
   isActive: {
     type: Boolean,
