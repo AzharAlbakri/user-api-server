@@ -17,20 +17,6 @@ require('dotenv').config();
 module.exports = passport;
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // // إعداد جوجل OAuth 2.0
 // passport.use(new GoogleStrategy({
 //     clientID: GOOGLE_CLIENT_ID,
