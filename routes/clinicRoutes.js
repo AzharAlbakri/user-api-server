@@ -57,29 +57,36 @@ router.get("/clinics/:domain", async (req, res) => {
 });
 
 // 🟢 **Update clinic data**
+// 🟢 **Update clinic data (any field)**
 router.put("/clinics/:domain", async (req, res) => {
     const { domain } = req.params;
-    const { languageList } = req.body;
+    const updateData = req.body; // Capture the whole request body to update
 
     try {
         const clinic = await Clinic.findOne({ domain });
         if (!clinic) return res.status(404).json({ error: "❌ Clinic not found" });
 
-        if (languageList && Array.isArray(languageList)) {
-            // Ensure there is at least one language set as default
-            const hasDefaultLang = languageList.some(lang => lang.default);
+        // If languageList is provided, check for the default language and update it
+        if (updateData.languageList && Array.isArray(updateData.languageList)) {
+            const hasDefaultLang = updateData.languageList.some(lang => lang.default);
             if (!hasDefaultLang) {
                 return res.status(400).json({ error: "❌ At least one language must be set as default." });
             }
-
-            // Update language list
-            clinic.languageList = languageList;
+            // Update languageList field
+            clinic.languageList = updateData.languageList;
         }
 
-        // Update clinic in the database
+        // Merge other fields from the request body into the clinic
+        Object.keys(updateData).forEach(key => {
+            if (key !== "languageList") {
+                clinic[key] = updateData[key]; // Dynamically update clinic fields
+            }
+        });
+
+        // Save the updated clinic data to the database
         await clinic.save();
 
-        // Update cache after modification
+        // Update the cache with the modified clinic data
         await redis.setEx(`clinic:${domain}`, CACHE_EXPIRY, JSON.stringify(clinic));
 
         res.json({ message: "✅ Clinic updated successfully!", clinic });
@@ -87,6 +94,7 @@ router.put("/clinics/:domain", async (req, res) => {
         res.status(400).json({ error: "❌ Failed to update clinic", details: err.message });
     }
 });
+
 
 // 🟢 **Delete a clinic**
 router.delete("/clinics/:domain", async (req, res) => {
