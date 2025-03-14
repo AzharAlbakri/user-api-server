@@ -9,7 +9,7 @@ const localizedStringSchema = new mongoose.Schema({
 
 // **Subcategory schema**
 const subCategorySchema = new mongoose.Schema({
-    subcategoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // توليد تلقائي
+    subcategoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     description: localizedStringSchema,
     imageUrl: { type: String, required: true },
@@ -27,9 +27,9 @@ const categorySchema = new mongoose.Schema({
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { _id: false });
 
-// **Service schema**
-const serviceSchema = new mongoose.Schema({
-    serviceId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
+// **Section schema**
+const sectionSchema = new mongoose.Schema({
+    sectionId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     description: localizedStringSchema,
     imageUrl: { type: String, required: true },
@@ -37,4 +37,4 @@ const serviceSchema = new mongoose.Schema({
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Service', serviceSchema);
+module.exports = mongoose.model('Section', sectionSchema);

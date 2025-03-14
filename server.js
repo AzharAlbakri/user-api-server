@@ -24,7 +24,7 @@ const User = require('./models/User');
 const Patient = require('./models/Patient');
 const Appointment = require('./models/Appointment');
 const Article = require('./models/Article');
-const Service = require('./models/Service');
+const Section = require('./models/Section');
 
 const app = express();
 app.use(cors()); // Enable CORS for all requests
@@ -363,26 +363,26 @@ app.get('/getAllArticles', async (req, res) => {
 });
 
 // SERVICES
-// Fetch all services
-app.get('/services', async (req, res) => {
+// Fetch all sections
+app.get('/sections', async (req, res) => {
   try {
     //const { lang } = req.query; // Get the language from query parameters
     const { lang } = "en"; // Get the language from query parameters
 
-    const services = await Service.find(); // Fetch all services from the database
+    const sections = await Section.find(); // Fetch all sections from the database
 
-    if (services.length === 0) return res.status(404).json({ message: "No services found" });
+    if (sections.length === 0) return res.status(404).json({ message: "No sections found" });
 
     // If no language is specified, send all data as is
-    if (!lang) return res.json(services);
+    if (!lang) return res.json(sections);
 
     // Prepare data according to the specified language
-    const localizedServices = services.map(service => ({
-      serviceId: service.serviceId,
-      title: service.title[lang] || service.title['en'],
-      description: service.description[lang] || service.description['en'],
-      imageUrl: service.imageUrl,
-      categories: service.categories.map(category => ({
+    const localizedSections = sections.map(section => ({
+      sectionId: section.sectionId,
+      title: section.title[lang] || section.title['en'],
+      description: section.description[lang] || section.description['en'],
+      imageUrl: section.imageUrl,
+      categories: section.categories.map(category => ({
         categoryId: category.categoryId,
         title: category.title[lang] || category.title['en'],
         description: category.description[lang] || category.description['en'],
@@ -397,28 +397,28 @@ app.get('/services', async (req, res) => {
       }))
     }));
 
-    res.json(localizedServices);
+    res.json(localizedSections);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// API to retrieve service data
-app.get('/service/:id', async (req, res) => {
+// API to retrieve section data
+app.get('/section/:id', async (req, res) => {
   try {
     const { lang } = req.query;
-    const service = await Service.findOne({ serviceId: req.params.id });
+    const section = await Section.findOne({ sectionId: req.params.id });
 
-    if (!service) return res.status(404).json({ message: "Service not found" });
+    if (!section) return res.status(404).json({ message: "Section not found" });
 
-    if (!lang) return res.json(service);
+    if (!lang) return res.json(section);
 
-    const localizedService = {
-      serviceId: service.serviceId,
-      title: service.title[lang] || service.title['en'],
-      description: service.description[lang] || service.description['en'],
-      imageUrl: service.imageUrl,
-      categories: service.categories.map(category => ({
+    const localizedSection = {
+      sectionId: section.sectionId,
+      title: section.title[lang] || section.title['en'],
+      description: section.description[lang] || section.description['en'],
+      imageUrl: section.imageUrl,
+      categories: section.categories.map(category => ({
         categoryId: category.categoryId,
         title: category.title[lang] || category.title['en'],
         description: category.description[lang] || category.description['en'],
@@ -433,37 +433,37 @@ app.get('/service/:id', async (req, res) => {
       }))
     };
 
-    res.json(localizedService);
+    res.json(localizedSection);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Fetch categories for a specific service
-app.get('/service/:serviceId/categories', async (req, res) => {
+// Fetch categories for a specific section
+app.get('/section/:sectionId/categories', async (req, res) => {
   try {
-    console.log("req.params.serviceId", req.params.serviceId);
-    const service = await Service.findOne({ serviceId: req.params.serviceId });
-    if (!service) return res.status(404).json({ error: 'Service not found' });
-    res.json(service.categories);
+    console.log("req.params.sectionId", req.params.sectionId);
+    const section = await Section.findOne({ sectionId: req.params.sectionId });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
+    res.json(section.categories);
   } catch (err) {
     res.status(500).json({ error: 'An error occurred while fetching categories' });
   }
 });
 
 // Fetch subcategories for a specific category
-app.get('/service/:serviceId/category/:categoryId/subcategories', async (req, res) => {
+app.get('/section/:sectionId/category/:categoryId/subcategories', async (req, res) => {
   try {
-    console.log("req.params.serviceId:", req.params.serviceId);
+    console.log("req.params.sectionId:", req.params.sectionId);
 
-    // Find the service using ObjectId
-    const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
-    console.log("Service Found:", service);
+    // Find the section using ObjectId
+    const section = await Section.findOne({ sectionId: new mongoose.Types.ObjectId(req.params.sectionId) });
+    console.log("Section Found:", section);
 
-    if (!service) return res.status(404).json({ error: 'Service not found' });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
 
     // Find the category using ObjectId
-    const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
+    const category = section.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
     console.log("Category Found:", category);
 
     if (!category) return res.status(404).json({ error: 'Category not found' });
@@ -477,16 +477,16 @@ app.get('/service/:serviceId/category/:categoryId/subcategories', async (req, re
   }
 });
 
-app.get('/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', async (req, res) => {
+app.get('/section/:sectionId/category/:categoryId/subcategory/:subcategoryId', async (req, res) => {
   try {
-    const { serviceId, categoryId, subcategoryId } = req.params;
+    const { sectionId, categoryId, subcategoryId } = req.params;
 
-    // Find the service using serviceId
-    const service = await Service.findOne({ serviceId });
-    if (!service) return res.status(404).json({ error: 'Service not found' });
+    // Find the section using sectionId
+    const section = await Section.findOne({ sectionId });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
 
     // Find the category using categoryId
-    const category = service.categories.find(cat => cat.categoryId.toString() === categoryId);
+    const category = section.categories.find(cat => cat.categoryId.toString() === categoryId);
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     // Find the subcategory using subcategoryId

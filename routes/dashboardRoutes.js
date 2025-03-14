@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { verifyToken } = require('../utils/jwt'); // Import token verification
@@ -7,7 +8,7 @@ const User = require('../models/User'); // User model
 const Patient = require('../models/Patient'); // Patient model
 const Appointment = require('../models/Appointment'); // Appointment model
 const Article = require('../models/Article'); // Article model
-const Service = require('../models/Service'); // Service model
+const Section = require('../models/Section'); // Section model
 
 const router = express.Router();
 
@@ -48,6 +49,7 @@ router.post('/addAdmin', async (req, res) => {
 
 // // API for admin login
 router.post('/adminLogin', async (req, res) => {
+  console.log("test");
   const { email, password } = req.body;
 
   // Validate input
@@ -369,21 +371,18 @@ router.put('/updateAppointment/:id', verifyToken, async (req, res) => {
   }
 });
 
-//Services
-// To add a new service
-router.post('/addService', verifyToken, async (req, res) => {
+//Sections
+// To add a new section
+router.post('/addSection', verifyToken, async (req, res) => {
   try {
-    console.log("Received Data:", req.body); // To inspect the data coming from the client
-
     const { title, description, imageUrl, categories } = req.body;
 
     // Validate the basic data
     if (!title || !description || !imageUrl || !categories || !Array.isArray(categories) || categories.length === 0) {
       return res.status(400).json({ message: "Missing required fields or invalid categories" });
     }
-
-    // Create the new service object without `serviceId` (MongoDB will generate it automatically)
-    const newService = new Service({
+    // Create the new section object without `sectionId` (MongoDB will generate it automatically)
+    const newSection = new Section({
       title,
       description,
       imageUrl,
@@ -400,36 +399,36 @@ router.post('/addService', verifyToken, async (req, res) => {
       }))
     });
 
-    // Save the service in the database
-    await newService.save();
+    // Save the section in the database
+    await newSection.save();
 
     // Return the response successfully
-    res.status(201).json({ message: 'Service added successfully', service: newService });
+    res.status(201).json({ message: 'Section added successfully', section: newSection });
 
   } catch (err) {
-    console.error('Error adding service:', err);
-    res.status(500).json({ message: 'Error adding service', error: err.message });
+    console.error('Error adding section:', err);
+    res.status(500).json({ message: 'Error adding section', error: err.message });
   }
 });
 
-// To fetch all services
-router.get('/services', verifyToken, async (req, res) => {
+// To fetch all sections
+router.get('/sections', verifyToken, async (req, res) => {
   try {
     const { lang } = req.query; // Get the language from query parameters
-    const services = await Service.find(); // Fetch all services from the database
+    const sections = await Section.find(); // Fetch all sections from the database
 
-    if (services.length === 0) return res.status(404).json({ message: "No services found" });
+    if (sections.length === 0) return res.status(404).json({ message: "No sections found" });
 
     // If no language is specified, send all data as is
-    if (!lang) return res.json(services);
+    if (!lang) return res.json(sections);
 
     // Prepare data according to the specified language
-    const localizedServices = services.map(service => ({
-      serviceId: service.serviceId,
-      title: service.title[lang] || service.title['en'],
-      description: service.description[lang] || service.description['en'],
-      imageUrl: service.imageUrl,
-      categories: service.categories.map(category => ({
+    const localizedSections = sections.map(section => ({
+      sectionId: section.sectionId,
+      title: section.title[lang] || section.title['en'],
+      description: section.description[lang] || section.description['en'],
+      imageUrl: section.imageUrl,
+      categories: section.categories.map(category => ({
         categoryId: category.categoryId,
         title: category.title[lang] || category.title['en'],
         description: category.description[lang] || category.description['en'],
@@ -444,28 +443,28 @@ router.get('/services', verifyToken, async (req, res) => {
       }))
     }));
 
-    res.json(localizedServices);
+    res.json(localizedSections);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// API to retrieve service data
-router.get('/service/:id', verifyToken, async (req, res) => {
+// API to retrieve section data
+router.get('/section/:id', verifyToken, async (req, res) => {
   try {
     const { lang } = req.query;
-    const service = await Service.findOne({ serviceId: req.params.id });
+    const section = await Section.findOne({ sectionId: req.params.id });
 
-    if (!service) return res.status(404).json({ message: "Service not found" });
+    if (!section) return res.status(404).json({ message: "Section not found" });
 
-    if (!lang) return res.json(service);
+    if (!lang) return res.json(section);
 
-    const localizedService = {
-      serviceId: service.serviceId,
-      title: service.title[lang] || service.title['en'],
-      description: service.description[lang] || service.description['en'],
-      imageUrl: service.imageUrl,
-      categories: service.categories.map(category => ({
+    const localizedSection = {
+      sectionId: section.sectionId,
+      title: section.title[lang] || section.title['en'],
+      description: section.description[lang] || section.description['en'],
+      imageUrl: section.imageUrl,
+      categories: section.categories.map(category => ({
         categoryId: category.categoryId,
         title: category.title[lang] || category.title['en'],
         description: category.description[lang] || category.description['en'],
@@ -480,33 +479,33 @@ router.get('/service/:id', verifyToken, async (req, res) => {
       }))
     };
 
-    res.json(localizedService);
+    res.json(localizedSection);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Update the status of the service, category, or subcategory
+// Update the status of the section, category, or subcategory
 router.patch('/:type/:id/status', verifyToken, async (req, res) => {
   const { type, id } = req.params;
   const { status } = req.body;
 
   try {
-    let updatedService;
-    if (type === 'service') {
-      updatedService = await Service.findOneAndUpdate(
-        { serviceId: id },
+    let updatedSection;
+    if (type === 'section') {
+      updatedSection = await Section.findOneAndUpdate(
+        { sectionId: id },
         { status },
         { new: true }
       );
     } else if (type === 'category') {
-      updatedService = await Service.findOneAndUpdate(
+      updatedSection = await Section.findOneAndUpdate(
         { 'categories.categoryId': id },
         { $set: { 'categories.$.status': status } },
         { new: true }
       );
     } else if (type === 'subcategory') {
-      updatedService = await Service.findOneAndUpdate(
+      updatedSection = await Section.findOneAndUpdate(
         { 'categories.subcategories.subcategoryId': id },
         { $set: { 'categories.$[].subcategories.$[sub].status': status } },
         { arrayFilters: [{ 'sub.subcategoryId': id }], new: true }
@@ -514,51 +513,51 @@ router.patch('/:type/:id/status', verifyToken, async (req, res) => {
     } else {
       return res.status(400).json({ error: 'Invalid type' });
     }
-    res.json(updatedService);
+    res.json(updatedSection);
   } catch (err) {
     res.status(500).json({ error: 'An error occurred while updating the status' });
   }
 });
 
-// Delete a service
-router.delete('/service/:serviceId', verifyToken, async (req, res) => {
+// Delete a section
+router.delete('/section/:sectionId', verifyToken, async (req, res) => {
   try {
-    await Service.findOneAndDelete({ serviceId: req.params.serviceId });
-    res.json({ message: 'Service deleted successfully' });
+    await Section.findOneAndDelete({ sectionId: req.params.sectionId });
+    res.json({ message: 'Section deleted successfully' });
   } catch (err) {
-    res.status(500).json({ error: 'An error occurred while deleting the service' });
+    res.status(500).json({ error: 'An error occurred while deleting the section' });
   }
 });
 
-// Delete a category for a specific service
+// Delete a category for a specific section
 // to do
 // Delete a subcategory within a category
 // to do
 
-// Fetch categories for a specific service
-router.get('/service/:serviceId/categories', verifyToken, async (req, res) => {
+// Fetch categories for a specific section
+router.get('/section/:sectionId/categories', verifyToken, async (req, res) => {
   try {
-    const service = await Service.findOne({ serviceId: req.params.serviceId });
-    if (!service) return res.status(404).json({ error: 'Service not found' });
-    res.json(service.categories);
+    const section = await Section.findOne({ sectionId: req.params.sectionId });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
+    res.json(section.categories);
   } catch (err) {
     res.status(500).json({ error: 'An error occurred while fetching categories' });
   }
 });
 
 // Fetch subcategories for a specific category
-router.get('/service/:serviceId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
+router.get('/section/:sectionId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
   try {
-    console.log("req.params.serviceId:", req.params.serviceId);
+    console.log("req.params.sectionId:", req.params.sectionId);
 
-    // Find the service using ObjectId
-    const service = await Service.findOne({ serviceId: new mongoose.Types.ObjectId(req.params.serviceId) });
-    console.log("Service Found:", service);
+    // Find the section using ObjectId
+    const section = await Section.findOne({ sectionId: new mongoose.Types.ObjectId(req.params.sectionId) });
+    console.log("Section Found:", section);
 
-    if (!service) return res.status(404).json({ error: 'Service not found' });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
 
     // Find the category using ObjectId
-    const category = service.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
+    const category = section.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
     console.log("Category Found:", category);
 
     if (!category) return res.status(404).json({ error: 'Category not found' });
@@ -572,65 +571,65 @@ router.get('/service/:serviceId/category/:categoryId/subcategories', verifyToken
   }
 });
 
-// ✅ Update service data
-router.put('/service/:serviceId', verifyToken, async (req, res) => {
+// ✅ Update section data
+router.put('/section/:sectionId', verifyToken, async (req, res) => {
   try {
-    const { serviceId } = req.params;
+    const { sectionId } = req.params;
     console.log("req.params", req.params);
 
     const updatedData = req.body;
 
     console.log("updatedData", updatedData);
 
-    const service = await Service.findOneAndUpdate(
-      { serviceId },
+    const section = await Section.findOneAndUpdate(
+      { sectionId },
       { $set: updatedData },
       { new: true }
     );
 
-    if (!service) return res.status(404).json({ message: 'Service not found' });
+    if (!section) return res.status(404).json({ message: 'Section not found' });
 
-    res.json(service);
+    res.json(section);
   } catch (error) {
-    res.status(500).json({ message: 'Error updating service', error });
+    res.status(500).json({ message: 'Error updating section', error });
   }
 });
 
-// ✅ Update category data within a service
-router.put('/service/:serviceId/category/:categoryId', verifyToken, async (req, res) => {
+// ✅ Update category data within a section
+router.put('/section/:sectionId/category/:categoryId', verifyToken, async (req, res) => {
   try {
-    const { serviceId, categoryId } = req.params;
+    const { sectionId, categoryId } = req.params;
     const updatedData = req.body;
 
-    const service = await Service.findOneAndUpdate(
-      { serviceId, 'categories.categoryId': categoryId },
+    const section = await Section.findOneAndUpdate(
+      { sectionId, 'categories.categoryId': categoryId },
       { $set: { 'categories.$': updatedData } },
       { new: true }
     );
 
-    if (!service) return res.status(404).json({ message: 'Category not found' });
+    if (!section) return res.status(404).json({ message: 'Category not found' });
 
-    res.json(service);
+    res.json(section);
   } catch (error) {
     res.status(500).json({ message: 'Error updating category', error });
   }
 });
 
 // ✅ Update subcategory data within a category
-router.put('/service/:serviceId/category/:categoryId/subcategory/:subcategoryId', verifyToken, async (req, res) => {
+router.put('/section/:sectionId/category/:categoryId/subcategory/:subcategoryId', verifyToken, async (req, res) => {
   try {
-    const { serviceId, categoryId, subcategoryId } = req.params;
+    const { sectionId, categoryId, subcategoryId } = req.params;
     const updatedData = req.body;
 
-    const service = await Service.findOneAndUpdate(
-      { serviceId, 'categories.categoryId': categoryId, 'categories.subcategories.subcategoryId': subcategoryId },
+    const section = await Section.findOneAndUpdate(
+      { sectionId, 'categories.categoryId': categoryId, 'categories.subcategories.subcategoryId': subcategoryId },
       { $set: { 'categories.$[cat].subcategories.$[sub]': updatedData } },
       { new: true, arrayFilters: [{ 'cat.categoryId': categoryId }, { 'sub.subcategoryId': subcategoryId }] }
     );
 
-    if (!service) return res.status(404).json({ message: 'Subcategory not found' });
+    if (!section) return res.status(404).json({ message: 'Subcategory not found' });
 
-    res.json(service);
+    res.json(section);
   } catch (error) {
     res.status(500).json({ message: 'Error updating subcategory', error });
   }
