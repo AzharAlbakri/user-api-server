@@ -203,37 +203,42 @@ app.get('/getAvailableTimes/:date', async (req, res) => {
 
 app.post('/addYearAppointments', async (req, res) => {
   try {
-    const year = 2025; // The desired year
-    const startDate = new Date(`${year}-01-01T00:00:00Z`); // Start of the day in UTC
-    const endDate = new Date(`${year}-12-31T23:59:59Z`); // End of the last day of the year
+    const year = 2025;
+    const today = new Date(); // تاريخ اليوم
+    today.setUTCHours(0, 0, 0, 0); // إعادة ضبط الوقت إلى بداية اليوم
 
-    const appointments = []; // Array to store appointments
+    const endDate = new Date(`${year}-12-31T23:59:59Z`);
 
-    for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
-      for (let hour = 9; hour < 18; hour++) { // From 9 AM to 5:30 PM
-        for (let minute of [0, 30]) { // Every half hour (00 and 30)
+    const appointments = []; // تخزين جميع المواعيد قبل إدخالها في MongoDB
+
+    for (let date = new Date(today); date <= endDate; date.setDate(date.getDate() + 1)) {
+      for (let hour = 9; hour < 18; hour++) { // من 9 صباحًا إلى 5:30 مساءً
+        for (let minute of [0, 30]) { // كل نصف ساعة
           const appointmentTime = new Date(date);
-          appointmentTime.setUTCHours(hour, minute, 0, 0); // Set the hour and minute in UTC
+          appointmentTime.setUTCHours(hour, minute, 0, 0); // ضبط التوقيت في UTC
 
-          appointments.push({
-            appointment_id: `${appointmentTime.toISOString().split('T')[0]}-${hour}:${minute === 0 ? '00' : '30'}`, // Appointment ID
-            date: appointmentTime.toISOString().split('T')[0], // Appointment date
-            time: appointmentTime.toISOString().split('T')[1].split('.')[0], // Appointment time (hours:minutes:seconds)
-            status: 'available', // Appointment status (available)
-            patient_id: null, // No patient currently
-            doctor_id: 'dr123', // Default doctor ID
+          // إنشاء كائن Appointment جديد
+          const appointment = new Appointment({
+            appointment_id: `${appointmentTime.toISOString().split('T')[0]}-${hour}:${minute === 0 ? '00' : '30'}`, 
+            date: appointmentTime.toISOString().split('T')[0], 
+            time: appointmentTime.toISOString().split('T')[1].split('.')[0], 
+            status: 'available',
+            patient_id: null,
+            doctor_id: 'dr123',
           });
+
+          appointments.push(appointment);
         }
       }
     }
 
-    // Add appointments to MongoDB in bulk
+    // إدخال جميع المواعيد إلى MongoDB دفعة واحدة
     await Appointment.insertMany(appointments);
 
-    res.status(200).json({ message: 'Appointments for the year 2025 added successfully!' });
+    res.status(200).json({ message: `Appointments from ${today.toISOString().split('T')[0]} to 2025 added successfully!` });
   } catch (error) {
-    console.error('Error adding year appointments:', error);
-    res.status(500).json({ error: 'An error occurred while adding year appointments' });
+    console.error('Error adding appointments:', error);
+    res.status(500).json({ error: 'An error occurred while adding appointments' });
   }
 });
 
@@ -264,7 +269,113 @@ app.post('/addUser', async (req, res) => {
   }
 });
 
-// API to book an appointment
+// // API to book an appointment
+// app.post('/bookAppointment', async (req, res) => {
+//   const { patient_name, phone_number, email, identity_number, appointment_date, appointment_time, appointment_reason, preferred_doctor, additional_notes, has_insurance, insurance_company, insurance_policy_number, agree_to_terms, reminder_method } = req.body;
+
+//   if (!patient_name || !phone_number || !email || !identity_number || !appointment_date || !appointment_time || !appointment_reason || !agree_to_terms || !reminder_method) {
+//     return res.status(400).json({ error: 'Please provide all required fields.' });
+//   }
+
+//   try {
+//     const appointment = await Appointment.findOne({ date: appointment_date, time: appointment_time });
+
+//     if (!appointment) {
+//       return res.status(404).json({ error: 'Appointment not found or already booked.' });
+//     }
+
+//     if (appointment.status === 'booked') {
+//       return res.status(400).json({ error: 'Appointment not available as it is already booked.' });
+//     }
+
+//     const patient = new Patient({
+//       patient_name,
+//       phone_number,
+//       email,
+//       identity_number,
+//       appointment_date,
+//       appointment_time,
+//       appointment_reason,
+//       preferred_doctor: preferred_doctor || 'Not specified',
+//       additional_notes: additional_notes || '',
+//       has_insurance: has_insurance || false,
+//       insurance_company: has_insurance ? insurance_company : null,
+//       insurance_policy_number: has_insurance ? insurance_policy_number : null,
+//       agree_to_terms,
+//       reminder_method,
+//       appointment_id: appointment._id,
+//       booked_at: new Date(),
+//     });
+
+//     await patient.save();
+//     appointment.status = 'booked';
+//     appointment.patient_id = patient._id;
+//     await appointment.save();
+
+//     res.status(200).json({ message: "Appointment booked successfully for " + appointment_date, appointmentId: appointment._id, patientId: patient._id });
+//   } catch (error) {
+//     console.error('Error booking appointment:', error);
+//     res.status(500).json({ error: 'An error occurred while booking the appointment.' });
+//   }
+// });
+
+// app.post('/bookAppointment', async (req, res) => {
+//   const { patient_name, phone_number, email, identity_number, appointment_date, appointment_time, appointment_reason, preferred_doctor, additional_notes, has_insurance, insurance_company, insurance_policy_number, agree_to_terms, reminder_method } = req.body;
+
+//   if (!patient_name || !phone_number || !email || !identity_number || !appointment_date || !appointment_time || !appointment_reason || !agree_to_terms || !reminder_method) {
+//     return res.status(400).json({ error: 'Please provide all required fields.' });
+//   }
+
+//   try {
+//     const appointment = await Appointment.findOne({ date: appointment_date, time: appointment_time });
+
+//     if (!appointment) {
+//       return res.status(404).json({ error: 'Appointment not found or already booked.' });
+//     }
+
+//     if (appointment.status === 'booked') {
+//       return res.status(400).json({ error: 'Appointment not available as it is already booked.' });
+//     }
+
+//     const patient = new Patient({
+//       patient_name,
+//       phone_number,
+//       email,
+//       identity_number,
+//       appointment_date,
+//       appointment_time,
+//       appointment_reason,
+//       preferred_doctor: preferred_doctor || 'Not specified',
+//       additional_notes: additional_notes || '',
+//       has_insurance: has_insurance || false,
+//       insurance_company: has_insurance ? insurance_company : null,
+//       insurance_policy_number: has_insurance ? insurance_policy_number : null,
+//       agree_to_terms,
+//       reminder_method,
+//       appointment_id: appointment._id,
+//       booked_at: new Date(),
+//     });
+
+//     await patient.save();
+
+//     appointment.status = 'booked';
+//     appointment.patient_id = patient._id;
+//     await appointment.save();
+
+//     // Populate the patient details into the response
+//     const populatedAppointment = await Appointment.findById(appointment._id).populate('patient_id', 'patient_name');
+
+//     res.status(200).json({ 
+//       message: "Appointment booked successfully for " + appointment_date, 
+//       appointmentId: appointment._id, 
+//       patientId: patient._id, 
+//       patientName: populatedAppointment.patient_id ? populatedAppointment.patient_id.patient_name : 'N/A'
+//     });
+//   } catch (error) {
+//     console.error('Error booking appointment:', error);
+//     res.status(500).json({ error: 'An error occurred while booking the appointment.' });
+//   }
+// });
 app.post('/bookAppointment', async (req, res) => {
   const { patient_name, phone_number, email, identity_number, appointment_date, appointment_time, appointment_reason, preferred_doctor, additional_notes, has_insurance, insurance_company, insurance_policy_number, agree_to_terms, reminder_method } = req.body;
 
@@ -302,17 +413,29 @@ app.post('/bookAppointment', async (req, res) => {
       booked_at: new Date(),
     });
 
-    await patient.save();
-    appointment.status = 'booked';
-    appointment.patient_id = patient._id;
-    await appointment.save();
+    await patient.save(); // Ensure the patient is saved
 
-    res.status(200).json({ message: "Appointment booked successfully for " + appointment_date, appointmentId: appointment._id, patientId: patient._id });
+    // Now update the appointment with the patient's ID
+    appointment.status = 'booked';
+    appointment.patient_id = patient._id; // Assign the patient's ID to the appointment
+    await appointment.save(); // Save the updated appointment
+
+    // Populate the patient details into the response
+    const populatedAppointment = await Appointment.findById(appointment._id).populate('patient_id', 'patient_name');
+
+    res.status(200).json({ 
+      message: "Appointment booked successfully for " + appointment_date, 
+      appointmentId: appointment._id, 
+      patientId: patient._id, 
+      patientName: populatedAppointment.patient_id ? populatedAppointment.patient_id.patient_name : 'N/A'
+    });
   } catch (error) {
     console.error('Error booking appointment:', error);
     res.status(500).json({ error: 'An error occurred while booking the appointment.' });
   }
 });
+
+
 
 // API to add a new article
 app.post('/addArticle', async (req, res) => {

@@ -115,21 +115,21 @@ router.get('/getAllPatients', verifyToken, async (req, res) => {
   }
 });
 
-router.get('/getAllAppointments', verifyToken, async (req, res) => {
-  try {
-    const appointments = await Appointment.find().populate('patient_id', 'name');
-    const formattedAppointments = appointments.map(app => ({
-      _id: router._id,
-      date: router.date,
-      time: router.time,
-      status: router.status,
-      patientName: router.patient_id ? router.patient_id.name : 'N/A'
-    }));
-    res.json(formattedAppointments);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching appointments', error });
-  }
-});
+// router.get('/getAllAppointments', verifyToken, async (req, res) => {
+//   try {
+//     const appointments = await Appointment.find().populate('patient_id', 'name');
+//     const formattedAppointments = appointments.map(app => ({
+//       _id: router._id,
+//       date: router.date,
+//       time: router.time,
+//       status: router.status,
+//       patientName: router.patient_id ? router.patient_id.name : 'N/A'
+//     }));
+//     res.json(formattedAppointments);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error fetching appointments', error });
+//   }
+// });
 
 // API to fetch appointments with status 'booked'
 router.get('/getBookedAppointments', verifyToken, async (req, res) => {
@@ -142,6 +142,40 @@ router.get('/getBookedAppointments', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching booked appointments:', error);
     res.status(500).json({ error: 'An error occurred while fetching booked appointments.' });
+  }
+});
+
+// router.get('/getAllAppointments', verifyToken, async (req, res) => {
+//   try {
+//     const appointments = await Appointment.find().populate('patient_id', 'name');
+//     const formattedAppointments = appointments.map(app => ({
+//       _id: app._id, // استخدم app بدلاً من router
+//       date: app.date, // استخدم app بدلاً من router
+//       time: app.time, // استخدم app بدلاً من router
+//       status: app.status, // استخدم app بدلاً من router
+//       patientName: app.patient_id ? app.patient_id.name : 'N/A' // استخدم app بدلاً من router
+//     }));
+//     res.json(formattedAppointments);
+//   } catch (error) {
+//     res.status(500).json({ message: 'Error fetching appointments', error });
+//   }
+// });
+
+
+
+router.get('/getAllAppointments', verifyToken, async (req, res) => {
+  try {
+    const appointments = await Appointment.find().populate('patient_id', 'patient_name'); // Ensure patient_name is populated
+    const formattedAppointments = appointments.map(app => ({
+      _id: app._id,
+      date: app.date,
+      time: app.time,
+      status: app.status,
+      patientName: app.patient_id ? app.patient_id.patient_name : 'N/A' // Access the patient's name
+    }));
+    res.json(formattedAppointments);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching appointments', error });
   }
 });
 
