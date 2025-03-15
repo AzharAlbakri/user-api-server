@@ -2,8 +2,8 @@ const mongoose = require('mongoose');
 
 // **Translated texts schema**
 const localizedStringSchema = new mongoose.Schema({
-    ar: { type: String, required: true },
-    en: { type: String, required: true },
+    ar: { type: String, required: false },
+    en: { type: String, required: false },
     es: { type: String, required: true }
 }, { _id: false });
 
