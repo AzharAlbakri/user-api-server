@@ -11,7 +11,7 @@ const localizedStringSchema = new mongoose.Schema({
 const subCategorySchema = new mongoose.Schema({
     subcategoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
-    description: localizedStringSchema,
+    // description: localizedStringSchema,
     imageUrl: { type: String, required: true },
     content: localizedStringSchema,
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
@@ -21,7 +21,7 @@ const subCategorySchema = new mongoose.Schema({
 const categorySchema = new mongoose.Schema({
     categoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
-    description: localizedStringSchema,
+    // description: localizedStringSchema,
     imageUrl: { type: String, required: true },
     subcategories: [subCategorySchema],
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
@@ -31,7 +31,7 @@ const categorySchema = new mongoose.Schema({
 const sectionSchema = new mongoose.Schema({
     sectionId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
-    description: localizedStringSchema,
+    // description: localizedStringSchema,
     imageUrl: { type: String, required: true },
     categories: [categorySchema],
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }

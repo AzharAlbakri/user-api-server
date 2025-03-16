@@ -409,24 +409,24 @@ router.put('/updateAppointment/:id', verifyToken, async (req, res) => {
 // To add a new section
 router.post('/addSection', verifyToken, async (req, res) => {
   try {
-    const { title, description, imageUrl, categories } = req.body;
+    const { title, imageUrl, categories } = req.body;
 
     // Validate the basic data
-    if (!title || !description || !imageUrl || !categories || !Array.isArray(categories) || categories.length === 0) {
+    if (!title || !imageUrl || !categories || !Array.isArray(categories) || categories.length === 0) {
       return res.status(400).json({ message: "Missing required fields or invalid categories" });
     }
     // Create the new section object without `sectionId` (MongoDB will generate it automatically)
     const newSection = new Section({
       title,
-      description,
+      // description,
       imageUrl,
       categories: categories.map(category => ({
         title: category.title,
-        description: category.description,
+        // description: category.description,
         imageUrl: category.imageUrl,
         subcategories: category.subcategories.map(sub => ({
           title: sub.title,
-          description: sub.description,
+          // description: sub.description,
           imageUrl: sub.imageUrl,
           content: sub.content
         }))
@@ -460,17 +460,17 @@ router.get('/sections', verifyToken, async (req, res) => {
     const localizedSections = sections.map(section => ({
       sectionId: section.sectionId,
       title: section.title[lang] || section.title['en'],
-      description: section.description[lang] || section.description['en'],
+      // description: section.description[lang] || section.description['en'],
       imageUrl: section.imageUrl,
       categories: section.categories.map(category => ({
         categoryId: category.categoryId,
         title: category.title[lang] || category.title['en'],
-        description: category.description[lang] || category.description['en'],
+        // description: category.description[lang] || category.description['en'],
         imageUrl: category.imageUrl,
         subcategories: category.subcategories.map(sub => ({
           subcategoryId: sub.subcategoryId,
           title: sub.title[lang] || sub.title['en'],
-          description: sub.description[lang] || sub.description['en'],
+          // description: sub.description[lang] || sub.description['en'],
           imageUrl: sub.imageUrl,
           content: sub.content[lang] || sub.content['en']
         }))
@@ -496,17 +496,17 @@ router.get('/section/:id', verifyToken, async (req, res) => {
     const localizedSection = {
       sectionId: section.sectionId,
       title: section.title[lang] || section.title['en'],
-      description: section.description[lang] || section.description['en'],
+      // description: section.description[lang] || section.description['en'],
       imageUrl: section.imageUrl,
       categories: section.categories.map(category => ({
         categoryId: category.categoryId,
         title: category.title[lang] || category.title['en'],
-        description: category.description[lang] || category.description['en'],
+        // description: category.description[lang] || category.description['en'],
         imageUrl: category.imageUrl,
         subcategories: category.subcategories.map(sub => ({
           subcategoryId: sub.subcategoryId,
           title: sub.title[lang] || sub.title['en'],
-          description: sub.description[lang] || sub.description['en'],
+          // description: sub.description[lang] || sub.description['en'],
           imageUrl: sub.imageUrl,
           content: sub.content[lang] || sub.content['en']
         }))
@@ -629,15 +629,21 @@ router.put('/section/:sectionId', verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Update category data within a section
+// ✅ Update category data within a section without affecting subcategories
 router.put('/section/:sectionId/category/:categoryId', verifyToken, async (req, res) => {
   try {
     const { sectionId, categoryId } = req.params;
     const updatedData = req.body;
 
+    // فقط تحديث العنوان والصورة
     const section = await Section.findOneAndUpdate(
       { sectionId, 'categories.categoryId': categoryId },
-      { $set: { 'categories.$': updatedData } },
+      { 
+        $set: {
+          'categories.$.title': updatedData.title,
+          'categories.$.imageUrl': updatedData.imageUrl
+        }
+      },
       { new: true }
     );
 
@@ -648,6 +654,7 @@ router.put('/section/:sectionId/category/:categoryId', verifyToken, async (req, 
     res.status(500).json({ message: 'Error updating category', error });
   }
 });
+
 
 // ✅ Update subcategory data within a category
 router.put('/section/:sectionId/category/:categoryId/subcategory/:subcategoryId', verifyToken, async (req, res) => {
