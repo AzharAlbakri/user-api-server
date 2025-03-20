@@ -582,7 +582,7 @@ router.get('/section/:sectionId/categories', verifyToken, async (req, res) => {
 // Fetch subcategories for a specific category
 router.get('/section/:sectionId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
   try {
-    console.log("req.params.sectionId:", req.params.sectionId);
+    // console.log("req.params.sectionId:", req.params.sectionId);
 
     // Find the section using ObjectId
     const section = await Section.findOne({ sectionId: new mongoose.Types.ObjectId(req.params.sectionId) });
@@ -638,7 +638,7 @@ router.put('/section/:sectionId/category/:categoryId', verifyToken, async (req, 
     // فقط تحديث العنوان والصورة
     const section = await Section.findOneAndUpdate(
       { sectionId, 'categories.categoryId': categoryId },
-      { 
+      {
         $set: {
           'categories.$.title': updatedData.title,
           'categories.$.imageUrl': updatedData.imageUrl
@@ -673,6 +673,126 @@ router.put('/section/:sectionId/category/:categoryId/subcategory/:subcategoryId'
     res.json(section);
   } catch (error) {
     res.status(500).json({ message: 'Error updating subcategory', error });
+  }
+});
+
+////////////////////////////////&&&&&&&&&?////////////
+
+// ** جلب كل الأقسام**
+router.get("/form/sections",verifyToken, async (req, res) => {
+  console.log(1);
+  try {
+    const sections = await Section.find();
+    res.json(sections);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// **جلب الفئات داخل قسم معين**
+router.get("/form/sections/:sectionId/categories",verifyToken, async (req, res) => {
+  console.log(2);
+  try {
+    const sectionId = req.params.sectionId;
+    if (!mongoose.Types.ObjectId.isValid(sectionId)) {
+      console.log("Invalid section ID format");
+      return res.status(400).send("Invalid section ID format");
+    }
+
+    const section = await Section.findOne({ sectionId: req.params.sectionId });
+    if (!section) return res.status(404).send("Section not found");
+
+    res.json(section.categories);
+
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+// **تحميل الفئات الفرعية بناءً على القسم والفئة المحددين**
+router.get("/form/sections/:sectionId/categories/:categoryId/subcategories", async (req, res) => {
+  try {
+
+    const sectionId = req.params.sectionId;
+    if (!mongoose.Types.ObjectId.isValid(sectionId)) {
+      console.log("Invalid section ID format");
+      return res.status(400).send("Invalid section ID format");
+    }
+    const section = await Section.findOne({ sectionId: req.params.sectionId });
+    if (!section) return res.status(404).send("Section not found");
+
+    const categoryId = req.params.categoryId;
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      console.log("Invalid Category ID format");
+      return res.status(400).send("Invalid section ID format");
+    }
+    const category = section.categories.find(category => category.categoryId.toString() === req.params.categoryId);
+    if (!category) return res.status(404).send("Category not found");
+
+    // إرجاع الفئات الفرعية الموجودة داخل الفئة
+    res.status(200).json(category.subcategories);
+  } catch (err) {
+    res.status(400).send(err.message);
+  }
+});
+
+// **إضافة قسم جديد**
+router.post("/form/sections",verifyToken, async (req, res) => {
+  try {
+    console.log("req.body", req.body);
+    const newSection = new Section(req.body);
+    await newSection.save();
+    res.status(201).json(newSection);
+  } catch (err) {
+    res.status(400).send(err.message);
+  }
+});
+
+// **إضافة فئة جديدة داخل قسم موجود**
+router.post("/form/sections/:sectionId/categories",verifyToken, async (req, res) => {
+  try {
+    const sectionId = req.params.sectionId;
+    if (!mongoose.Types.ObjectId.isValid(sectionId)) {
+      console.log("Invalid section ID format");
+      return res.status(400).send("Invalid section ID format");
+    }
+
+    const section = await Section.findOne({ sectionId: req.params.sectionId });
+    if (!section) return res.status(404).send("Section not found");
+
+    section.categories.push(req.body);
+    await section.save();
+    res.status(201).json(section);
+  } catch (err) {
+    console.error("Error adding category:", err);
+    res.status(500).send(err.message);
+  }
+});
+
+// **إضافة فئة فرعية داخل فئة موجودة**
+router.post("/form/sections/:sectionId/categories/:categoryId/subcategories",verifyToken, async (req, res) => {
+  try {
+    const sectionId = req.params.sectionId;
+    if (!mongoose.Types.ObjectId.isValid(sectionId)) {
+      console.log("Invalid section ID format");
+      return res.status(400).send("Invalid section ID format");
+    }
+    const section = await Section.findOne({ sectionId: req.params.sectionId });
+    if (!section) return res.status(404).send("Section not found");
+
+    const categoryId = req.params.categoryId;
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      console.log("Invalid Category ID format");
+      return res.status(400).send("Invalid section ID format");
+    }
+    const category = section.categories.find(category => category.categoryId.toString() === req.params.categoryId);
+    if (!category) return res.status(404).send("Category not found");
+
+    category.subcategories.push(req.body);
+    await section.save();
+    res.status(201).json(section);
+  } catch (err) {
+    res.status(400).send(err.message);
   }
 });
 

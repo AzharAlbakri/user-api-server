@@ -12,7 +12,7 @@ const subCategorySchema = new mongoose.Schema({
     subcategoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     // description: localizedStringSchema,
-    imageUrl: { type: String, required: true },
+    imageUrl: { type: String, required: false },
     content: localizedStringSchema,
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { _id: false });
@@ -22,7 +22,7 @@ const categorySchema = new mongoose.Schema({
     categoryId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     // description: localizedStringSchema,
-    imageUrl: { type: String, required: true },
+    imageUrl: { type: String, required: false },
     subcategories: [subCategorySchema],
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { _id: false });
@@ -32,7 +32,7 @@ const sectionSchema = new mongoose.Schema({
     sectionId: { type: mongoose.Schema.Types.ObjectId, default: () => new mongoose.Types.ObjectId() }, // Auto-generated
     title: localizedStringSchema,
     // description: localizedStringSchema,
-    imageUrl: { type: String, required: true },
+    imageUrl: { type: String, required: false },
     categories: [categorySchema],
     status: { type: String, enum: ['Published', 'Unpublished'], default: 'Published' }
 }, { timestamps: true });
