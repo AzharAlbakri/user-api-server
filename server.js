@@ -17,6 +17,7 @@ const cookieParser = require('cookie-parser');
 
 const clinicRoutes = require("./routes/clinicRoutes");
 const DashboardRoutes = require("./routes/dashboardRoutes");
+const SectionRoutes = require("./routes/sectionRoutes");
 
 
 // Import user, patient, and appointment models
@@ -631,7 +632,7 @@ app.get('/section/:sectionId/category/:categoryId/subcategory/:subcategoryId', a
 // 📌 Use the routes
 app.use("/api", clinicRoutes);
 app.use("/dashboard", DashboardRoutes);
-
+app.use("/newsection", SectionRoutes);
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running at: http://localhost:${PORT}`);

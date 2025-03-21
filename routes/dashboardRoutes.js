@@ -579,6 +579,7 @@ router.get('/section/:sectionId/categories', verifyToken, async (req, res) => {
   }
 });
 
+//////////
 // Fetch subcategories for a specific category
 router.get('/section/:sectionId/category/:categoryId/subcategories', verifyToken, async (req, res) => {
   try {
@@ -604,6 +605,7 @@ router.get('/section/:sectionId/category/:categoryId/subcategories', verifyToken
     res.status(500).json({ error: 'An error occurred while fetching subcategories' });
   }
 });
+//////////
 
 // ✅ Update section data
 router.put('/section/:sectionId', verifyToken, async (req, res) => {
