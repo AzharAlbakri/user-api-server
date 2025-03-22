@@ -6,9 +6,62 @@ const jwt = require('jsonwebtoken');
 const { verifyToken } = require('../utils/jwt'); // Import token verification
 const router = express.Router();
 const SectionNew = require('../models/SectionNew'); // تأكد من أن هذا المسار صحيح
+const { route } = require('./auth');
 
+//CLIENT API
+// مسار لعرض جميع الأقسام مع الفئات المترجمة
+router.get('/nav/section', async (req, res) => {
+    try {
+        // العثور على جميع الأقسام المنشورة
+        const sections = await SectionNew.find({ status: 'Published' }).select('sectionId title categories');
+        
+        // إذا كانت الأقسام موجودة
+        if (!sections || sections.length === 0) {
+            return res.status(404).json({ message: 'No sections found' });
+        }
+
+        // إرسال الأقسام إلى العميل
+        res.json(sections);
+    } catch (error) {
+        console.error("Error fetching sections:", error);
+        res.status(500).json({ message: 'Error fetching sections' });
+    }
+});
+//
+
+
+router.get('/navstatic/section', async (req, res) => {
+    try {
+      const staticSections = [
+        { title: 'Team', page:'team', i18next:'team', categories: [] },
+        { title: 'Patologías', page:'pathologies', i18next:'pathologies', categories: [] },
+        { title: 'Treatments', page:'treatments', i18next:'treatments', categories: [] },
+        { title: 'Medical-Legal Expertise', page:'medical-legal-expertise', i18next:'medical_legal_expertise', categories: [] },
+        { title: 'Information & Advice', page:'information-advice', i18next:'information_and_advice', categories: [] },
+        { title: 'Contact',page:'contact',  i18next:'contact', categories: [] }
+      ];
+  
+      
+      const sections = await SectionNew.find({ status: 'Published' }).select('sectionId title categories');
+      
+      staticSections.forEach(staticSection => {
+        const match = sections.find(section => section.title.es.toLowerCase().includes(staticSection.title.toLowerCase()));
+        if (match) {
+
+          staticSection.sectionId = match.sectionId;
+          staticSection.categories = match.categories;
+        }
+      });
+  
+      res.json(staticSections); // إرسال الأقسام مع الفئات
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Error loading sections.' });
+    }
+  });
 
 //DASHBOARD PUBLIC API 
+
 // Fetch all sections
 router.get('/sections', async (req, res) => {
     try {
@@ -72,10 +125,8 @@ router.get('/section/:id', async (req, res) => {
 // Fetch categories for a specific section
 router.get('/section/:sectionId/categories', async (req, res) => {
     try {
-        console.log("req.params.sectionId", req.params.sectionId);
         const section = await SectionNew.findOne({ sectionId: req.params.sectionId });
         if (!section) return res.status(404).json({ error: 'Section not found' });
-        console.log("section@@@@", section);
         res.json(section.categories);
     } catch (err) {
         res.status(500).json({ error: 'An error occurred while fetching categories' });
@@ -84,18 +135,13 @@ router.get('/section/:sectionId/categories', async (req, res) => {
 
 router.get('/section/:sectionId/category/:categoryId', async (req, res) => {
     try {
-        console.log("req.params.sectionId", req.params.sectionId);
-        console.log("req.params.categoryId", req.params.categoryId);
         const { sectionId, categoryId } = req.params;
         
         const section = await SectionNew.findOne({ sectionId: sectionId });
         
         if (!section) return res.status(404).json({ error: 'Section not found' });
-        console.log("section Found:", section);
 
         const category = section.categories.find(cat => cat.categoryId.toString() === req.params.categoryId);
-        // const category = section.categories.find(cat => cat.categoryId == req.params.categoryId);
-        console.log("Category Found:", category);
 
         if (!category) return res.status(404).json({ error: 'Category not found' });
 
@@ -149,7 +195,6 @@ router.post('/addSection', verifyToken, async (req, res) => {
 
 router.get('/sections', verifyToken, async (req, res) => {
     try {
-        console.log
         const { lang } = req.query; // Get the language from query parameters
         const sections = await SectionNew.find(); // جلب جميع الأقسام من قاعدة البيانات
 
@@ -271,10 +316,8 @@ router.get('/section/:sectionId/categories', verifyToken, async (req, res) => {
 router.put('/section/:sectionId', verifyToken, async (req, res) => {
     try {
         const { sectionId } = req.params;
-        console.log("req.params", req.params);
 
         const updatedData = req.body;
-        console.log("updatedData", updatedData);
 
         // Update the section using sectionId
         const section = await SectionNew.findOneAndUpdate(
@@ -336,7 +379,6 @@ router.get("/form/sections/:sectionId/categories", verifyToken, async (req, res)
         }
 
         const section = await SectionNew.findOne({ sectionId: req.params.sectionId });
-        console.log("section", section);
         if (!section) return res.status(404).send("Section not found");
 
         res.json(section.categories);
