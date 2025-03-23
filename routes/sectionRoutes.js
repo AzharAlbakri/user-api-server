@@ -316,9 +316,8 @@ router.get('/section/:sectionId/categories', verifyToken, async (req, res) => {
 router.put('/section/:sectionId', verifyToken, async (req, res) => {
     try {
         const { sectionId } = req.params;
-
         const updatedData = req.body;
-
+        
         // Update the section using sectionId
         const section = await SectionNew.findOneAndUpdate(
             { sectionId },
@@ -346,7 +345,8 @@ router.put('/section/:sectionId/category/:categoryId', verifyToken, async (req, 
             {
                 $set: {
                     'categories.$.title': updatedData.title,
-                    'categories.$.imageUrl': updatedData.imageUrl
+                    'categories.$.imageUrl': updatedData.imageUrl,
+                    'categories.$.content': updatedData.content,
                 }
             },
             { new: true }
