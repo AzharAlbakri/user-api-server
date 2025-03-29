@@ -380,7 +380,7 @@ app.post('/addUser', async (req, res) => {
 app.post('/bookAppointment', async (req, res) => {
   const { patient_name, phone_number, email, identity_number, appointment_date, appointment_time, appointment_reason, preferred_doctor, additional_notes, has_insurance, insurance_company, insurance_policy_number, agree_to_terms, reminder_method } = req.body;
 
-  if (!patient_name || !phone_number || !email || !identity_number || !appointment_date || !appointment_time || !appointment_reason || !agree_to_terms || !reminder_method) {
+  if (!patient_name || !phone_number || !email || !appointment_date || !appointment_time || !appointment_reason || !agree_to_terms ) {
     return res.status(400).json({ error: 'Please provide all required fields.' });
   }
 
@@ -623,9 +623,6 @@ app.get('/section/:sectionId/category/:categoryId/subcategory/:subcategoryId', a
     res.status(500).json({ error: 'An error occurred while fetching the subcategory' });
   }
 });
-
-
-
 
 
 
